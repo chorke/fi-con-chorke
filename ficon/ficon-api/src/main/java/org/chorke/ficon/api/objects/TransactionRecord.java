@@ -2,6 +2,7 @@
 package org.chorke.ficon.api.objects;
 
 import java.math.BigDecimal;
+import java.util.Calendar;
 
 /**
  * Transaction record.
@@ -35,6 +36,10 @@ public class TransactionRecord {
      * Amount of money for this transaction.
      */
     private BigDecimal amount;
+    /**
+     * Time of transaction.
+     */
+    private Calendar transactionTime;
     
     /**
      * Creates new instance of {@link TransactionRecord} and associates
@@ -154,5 +159,23 @@ public class TransactionRecord {
      */
     public Long getAccountID() {
         return accountID;
+    }
+
+    /**
+     * Set time for this transaction.
+     * 
+     * @param transactionTime time to be set
+     */
+    public void setTransactionTime(Calendar transactionTime) {
+        this.transactionTime = transactionTime;
+    }
+
+    /**
+     * Returns transaction's time.
+     * 
+     * @return time of transaction
+     */
+    public Calendar getTransactionTime() {
+        return transactionTime;
     }
 }
