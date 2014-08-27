@@ -10,5 +10,6 @@
     <module>ficon-api</module>
     <module>ficon-backend</module>
     <module>ficon-gui</module>
+    <module>ficon-api-test</module>
   </modules>
 </project>

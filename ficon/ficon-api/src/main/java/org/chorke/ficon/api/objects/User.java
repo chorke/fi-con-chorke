@@ -108,4 +108,14 @@ public class User {
     public void removeAccount(Account account){
         accounts.remove(account);
     }
+    
+    /**
+     * Clears account records for this user (e.g. user signs out).
+     */
+    public void accountsListNoMoreNeeded(){
+        for(Account ac : accounts){
+            ac.transactionHistoryNoMoreNeeded();
+        }
+        accounts.clear();
+    }
 }

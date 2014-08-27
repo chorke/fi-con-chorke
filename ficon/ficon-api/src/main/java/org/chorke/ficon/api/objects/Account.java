@@ -184,11 +184,20 @@ public class Account {
     }
     
     /**
-     * Adds amount of money  to balacne of this account.
+     * Adds amount of money to the balance of this account.
      * 
      * @param transaction 
      */
     private void correctBalance(BigDecimal amount){
         balance = balance == null ? null : balance.add(amount);
+    }
+    
+    /**
+     * Clears transaction history for this account (e.g. user signs out, 
+     * user switches account).
+     */
+    public void transactionHistoryNoMoreNeeded(){
+        transactions.clear();
+        transactionsIDs.clear();
     }
 }
