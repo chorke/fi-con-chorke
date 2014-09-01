@@ -41,7 +41,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <addClassPath>true</addClassPath>
+                            <addClasspath>true</addClasspath>
                             <mainClass>org.chorke.ficon.gui.Main</mainClass>
                         </manifest>
                     </archive>

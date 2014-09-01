@@ -17,7 +17,7 @@ public interface AccountService {
      * Creates new account.
      * 
      * @param account account to be created
-     * @throws AccountServiceException 
+     * @throws AccountServiceException if some arror occurs
      * @throws IllegalArgumentException if {@code account} has some inappropriate field
      *      or is {@code null}
      */
@@ -27,7 +27,7 @@ public interface AccountService {
      * Deletes account.
      * 
      * @param account account to be deleted
-     * @throws AccountServiceException 
+     * @throws AccountServiceException if some arror occurs
      * @throws IllegalArgumentException if {@code account} has some inappropriate field
      *      or is {@code null}
      */
@@ -37,7 +37,7 @@ public interface AccountService {
      * Updates account.
      * 
      * @param account account to be updated
-     * @throws AccountServiceException 
+     * @throws AccountServiceException if some arror occurs
      * @throws IllegalArgumentException if {@code account} has some inappropriate field
      *      or is {@code null}
      */
@@ -48,7 +48,7 @@ public interface AccountService {
      * 
      * @param id id of account
      * @return account without trasnaction history
-     * @throws AccountServiceException 
+     * @throws AccountServiceException if some arror occurs
      * @throws IllegalArgumentException if {@code id} is {@code null}
      */
     Account getBasicAccount(Long id) throws AccountServiceException;
@@ -58,7 +58,7 @@ public interface AccountService {
      * 
      * @param id id of account
      * @return account with full transaction history
-     * @throws AccountServiceException 
+     * @throws AccountServiceException if some arror occurs
      * @throws IllegalArgumentException if {@code id} is {@code null}
      */
     Account getFullAccount(Long id) throws AccountServiceException;
@@ -68,7 +68,7 @@ public interface AccountService {
      * 
      * @param account account
      * @return account with its transaction history
-     * @throws AccountServiceException 
+     * @throws AccountServiceException if some arror occurs
      * @throws IllegalArgumentException if {@code account} is {@code null} or has
      *      some inappropriate field (e.g. null ID, nonempty actual transaction history)
      */
@@ -81,7 +81,7 @@ public interface AccountService {
      * @param account account
      * @param props load properties
      * @return {@code account} with its transaction history
-     * @throws AccountServiceException 
+     * @throws AccountServiceException if some arror occurs
      * @throws IllegalArgumentException if {@code account} is {@code null} or has
      *      some inappropriate field (e.g. null ID, nonempty actual transaction history)
      */
@@ -94,7 +94,7 @@ public interface AccountService {
      * @param to destination account (deposit)
      * @param ammount ammount of money (if negative source and destination accounts
      * will be swapped)
-     * @throws AccountServiceException 
+     * @throws AccountServiceException if some arror occurs
      * @throws IllegalArgumentException if some argument has either inappropriate
      *      field or is null.
      */
@@ -105,7 +105,7 @@ public interface AccountService {
      * 
      * @param usersID ID of user
      * @return IDs and names of accounts
-     * @throws AccountServiceException 
+     * @throws AccountServiceException if some arror occurs
      * @throws IllegalArgumentException if {@code usersID} is {@code null}
      */
     Map<Long, String> getAccountsName(Long usersID) throws AccountServiceException;
