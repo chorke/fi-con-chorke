@@ -135,7 +135,8 @@ public class Account {
     }
 
     /**
-     * Adds new transaction's record for this acount.
+     * Adds new transaction's record for this acount. If transaction with same
+     * ID is already present, then transaction will be replaced.
      * 
      * @param transaction transaction to be added
      * @throws IllegalArgumentException if transaction does not belong to
@@ -148,11 +149,11 @@ public class Account {
                     + " does not belong to this account (account's ID: " + id + 
                     ", account's ID in transaction: " + transaction.getAccountID()+ ").");
         }
-        if(!transactionsIDs.contains(transaction.getId())){
-            transactions.add(transaction);
-            transactionsIDs.add(transaction.getId());
-            correctBalance(transaction.getAmount());
-        }
+        //readding
+        removeTransaction(transaction);
+        transactions.add(transaction);
+        transactionsIDs.add(transaction.getId());
+        correctBalance(transaction.getAmount());
     }
     
     /**
