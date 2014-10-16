@@ -60,10 +60,10 @@ public interface AccountService {
     void deleteAccount(Account account) throws AccountServiceException;
     
     /**
-     * Updates account.
+     * Updates account. Updates only account's name and description.
      * 
      * @param account account to be updated
-     * @throws AccountServiceException if some error occurs
+     * @throws AccountServiceException if some error occurs or account is not in DB
      * @throws IllegalArgumentException if {@code account} has some inappropriate field
      *      or is {@code null}
      */

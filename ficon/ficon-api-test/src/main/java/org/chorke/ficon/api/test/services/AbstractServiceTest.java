@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.chorke.ficon.api.objects.Account;
 import org.chorke.ficon.api.objects.TransactionRecord;
@@ -113,6 +114,16 @@ public abstract class AbstractServiceTest<S, O> {
      * @param obj object to be saved
      */
     protected abstract void saveObject(O obj);
+    
+    /**
+     * Removes object which is managed by testing service.
+     * Object is removed in another way then standard delete method of service
+     * (e.g. directly from RDBMS, caching, Mock object,...) so result does not depend
+     * on service.
+     * 
+     * @param obj Object to be removed.
+     */
+    protected abstract void deleteObject(O obj);
     
     protected User getUser(Long id, String name, Set<Account> accounts){
         User us = new User();
@@ -247,6 +258,17 @@ public abstract class AbstractServiceTest<S, O> {
         }
     }
     
+    protected void deepMapEquals(Map m1, Map m2){
+        if(checkNullAndSize(m1, m2)){
+            return;
+        }
+        for(Object key : m1.keySet()){
+            Object m1Obj = m1.get(key);
+            Object m2Obj = m2.get(key);
+            assertEquals(m1Obj, m2Obj);
+        }
+    }
+    
     /**
      * 
      * @param o1
@@ -280,6 +302,24 @@ public abstract class AbstractServiceTest<S, O> {
         }
         if(c1.size() != c2.size()){
             fail("Not equals " + c1 + "  " + c2);
+        }
+        return false;
+    }
+    
+    /**
+     * 
+     * @param m1
+     * @param m2
+     * @return true, if both are null; false, if both are non-null; 
+     *  fails (Assert.fail()) if only one is null or size of maps are
+     *  not same
+     */
+    private boolean checkNullAndSize(Map m1, Map m2){
+        if(checkNullObjects(m1, m2)){
+            return true;
+        }
+        if(m1.size() != m2.size()){
+            fail("Not equals " + m1 + "  " + m2);
         }
         return false;
     }

@@ -21,10 +21,10 @@ public interface UserService {
     void createNewUser(User user) throws UserServiceException;
     
     /**
-     * Updates user in DB.
+     * Updates user in DB. Updates only user's name.
      * 
      * @param user user with new values to be set
-     * @throws UserServiceException if some error occurs
+     * @throws UserServiceException if some error occurs or user is not in DB
      * @throws IllegalArgumentException if user has some inapproriate fields
      */
     void updateUser(User user) throws UserServiceException;

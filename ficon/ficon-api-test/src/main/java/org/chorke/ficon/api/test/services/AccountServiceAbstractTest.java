@@ -392,6 +392,15 @@ public abstract class AccountServiceAbstractTest
     protected abstract List<TransactionRecord> getTransactionHistoryOfAccount(Long id);
     
     /**
+     * Returns all transactions in DB. 
+     * History is loaded independently of service, so it does not depends 
+     * on any service. 
+     * 
+     * @return 
+     */
+    protected abstract List<TransactionRecord> getAllStoredTransactions();
+    
+    /**
      * Saves transaction history of account.
      * History is saved independently of service, so it does not depends 
      * on any service. 
@@ -435,8 +444,12 @@ public abstract class AccountServiceAbstractTest
     public void createOKAccountNoTransactionHistory() throws AccountServiceException{
         Account ac = getAccount(null, 1L, "okaccount", "this account should be OK", null);
         doCreateNewAccount(ac);
+        if(ac.getId() == null){
+            fail("Id has not been set.");
+        }
         Account inDB = getObject(ac.getId());
-        deepEquals(ac, inDB);
+        Account acCopy = getAccount(ac.getId(), 1L, "okaccount", "this account should be OK", null);
+        deepEquals(acCopy, inDB);
     }
     
     @Test(expected = IllegalArgumentException.class)
@@ -477,14 +490,43 @@ public abstract class AccountServiceAbstractTest
     }
     
     @Test
-    public void deleteOkArgumentWithTransactionHistrory() throws AccountServiceException{
+    public void deleteNotInDB() throws AccountServiceException{
         Account ac = getAccount(null, 1L, "name", "des", null);
         saveObject(ac);
-        saveTransactionHistory(Arrays.asList(
-                    getTransactionRecord(null, ac.getId(), "name1", "des1", null, BigDecimal.ZERO, new GregorianCalendar()),
-                    getTransactionRecord(null, ac.getId(), "name2", "des2", null, BigDecimal.ZERO, new GregorianCalendar())
-                    )
-                );
+        Account acToDelete = getAccount(ac.getId() + 1, 1L, "name", "des", null);
+        doDeleteAccount(acToDelete);
+        deepListAccountsEquals(getAllObjects(), Arrays.asList(ac));
+    }
+    
+    @Test
+    public void deleteOkArgumentWithTransactionHistrory() throws AccountServiceException{
+        Account ac = getAccount(null, 1L, "name", "des", null);
+        Account ac1 = getAccount(null, 1L, "name1", "des1", null);
+        Account ac2 = getAccount(null, 2L, "name2", "des2", null);
+        saveObject(ac);
+        saveObject(ac1);
+        saveObject(ac2);
+        TransactionRecord ac_tr1 = getTransactionRecord(null, ac.getId(), "name1", "des1", null,
+                BigDecimal.ONE, new GregorianCalendar(2014, Calendar.JANUARY, 1));
+        TransactionRecord ac_tr2 = getTransactionRecord(null, ac.getId(), "name2", "des2", null,
+                BigDecimal.ONE, new GregorianCalendar(2014, Calendar.JANUARY, 2));
+        TransactionRecord ac1_tr1 = getTransactionRecord(null, ac1.getId(), "name3", "des3", null,
+                BigDecimal.ONE, new GregorianCalendar(2014, Calendar.JANUARY, 3));
+        TransactionRecord ac1_tr2 = getTransactionRecord(null, ac1.getId(), "name4", "des4", null,
+                BigDecimal.ONE, new GregorianCalendar(2014, Calendar.JANUARY, 4));
+        TransactionRecord ac2_tr1 = getTransactionRecord(null, ac2.getId(), "name5", "des5", null,
+                BigDecimal.ONE, new GregorianCalendar(2014, Calendar.JANUARY, 5));
+        TransactionRecord ac2_tr2 = getTransactionRecord(null, ac2.getId(), "name6", "des6", null,
+                BigDecimal.ONE, new GregorianCalendar(2014, Calendar.JANUARY, 6));
+        
+        saveTransactionHistory(Arrays.asList(ac_tr1, ac_tr2, ac1_tr1, ac1_tr2, ac2_tr1, ac2_tr2));
+        ac.addTransaction(ac_tr1);
+        ac.addTransaction(ac_tr2);
+        ac1.addTransaction(ac1_tr1);
+        ac1.addTransaction(ac1_tr2);
+        ac2.addTransaction(ac2_tr1);
+        ac2.addTransaction(ac2_tr2);
+        
         doDeleteAccount(ac);
         if(getObject(ac.getId()) != null){
             fail("object has not been deleted");
@@ -492,6 +534,11 @@ public abstract class AccountServiceAbstractTest
         if(!getTransactionHistoryOfAccount(ac.getId()).isEmpty()){
             fail("transaction hostory has not been deleted");
         }
+        
+        deepListAccountsEquals(getAllObjects(), Arrays.asList(ac1, ac2));
+        
+        deepListTransactionsEquals(getAllStoredTransactions(),
+                Arrays.asList(ac1_tr1, ac1_tr2, ac2_tr1, ac2_tr2));
     }
     
     @Test
@@ -573,6 +620,37 @@ public abstract class AccountServiceAbstractTest
         deepEquals(ac, getObject(ac.getId()));
     }
     
+    @Test(expected = AccountServiceException.class)
+    public void updateOkArgumentAccountNotInDB() throws AccountServiceException{
+        Account ac = getAccount(null, 1L, "namebefore", "description before update", null);
+        saveObject(ac);
+        Account acToUpdate = getAccount(ac.getId() + 1, 1L, "nameafter", "description after update", null);
+        try {
+            doUpdateAccount(acToUpdate);
+            fail("account not in DB");
+        } catch (AccountServiceException ex){
+            Account acClone = getAccount(ac.getId(), 1L, "namebefore", "description before update", null);
+            deepListAccountsEquals(Arrays.asList(acClone), getAllObjects());
+            throw ex;
+        }
+    }
+    
+    @Test(expected = AccountServiceException.class)
+    public void updateOkArgumentUsersIDChanged() throws AccountServiceException{
+        Account ac = getAccount(null, 1L, "namebefore", "description before update", null);
+        saveObject(ac);
+        Account acToUpdate = getAccount(ac.getId(), ac.getUsersID() + 1,
+                "nameafter", "description after update", null);
+        try {
+            doUpdateAccount(acToUpdate);
+            fail("user's ID has been changed");
+        } catch (AccountServiceException ex){
+            Account acClone = getAccount(ac.getId(), 1L, "namebefore", "description before update", null);
+            deepListAccountsEquals(Arrays.asList(acClone), getAllObjects());
+            throw ex;
+        }
+    }
+    
     @Test(expected = IllegalArgumentException.class)
     public void getBasicNullArgument() throws AccountServiceException{
         doGetBasicAccount(null);
@@ -608,7 +686,7 @@ public abstract class AccountServiceAbstractTest
     
     @Test
     public void getFullEmptyDB() throws AccountServiceException{
-        assertNull(doGetBasicAccount(1L));
+        assertNull(doGetFullAccount(1L));
     }
     
     @Test
@@ -622,7 +700,7 @@ public abstract class AccountServiceAbstractTest
         saveTransactionHistory(trHistory);
         ac.addTransaction(trHistory.get(0));
         ac.addTransaction(trHistory.get(1));
-        Account fromDB = doGetBasicAccount(ac.getId() + 1);
+        Account fromDB = doGetFullAccount(ac.getId() + 1);
         assertNull(fromDB);
     }
     
@@ -637,7 +715,7 @@ public abstract class AccountServiceAbstractTest
         saveTransactionHistory(trHistory);
         ac.addTransaction(trHistory.get(0));
         ac.addTransaction(trHistory.get(1));
-        Account fromDB = doGetBasicAccount(ac.getId());
+        Account fromDB = doGetFullAccount(ac.getId());
         deepEquals(fromDB, ac);
     }
     
@@ -685,8 +763,8 @@ public abstract class AccountServiceAbstractTest
                     getTransactionRecord(null, ac.getId(), "name2", "des2", null, BigDecimal.ZERO, new GregorianCalendar())
                     );
         saveTransactionHistory(trHistory);
-        Account ac2 = getAccount(2L, 2L, "name2", "description two", null);
-        Account ac2Copy = getAccount(2L, 2L, "name2", "description two", null);
+        Account ac2 = getAccount(ac.getId() + 1, 2L, "name2", "description two", null);
+        Account ac2Copy = getAccount(ac.getId() + 1, 2L, "name2", "description two", null);
         Account fromDB = doLoadTransactionHistory(ac2);
         deepEquals(fromDB, ac2Copy);
     }
@@ -765,8 +843,8 @@ public abstract class AccountServiceAbstractTest
                     getTransactionRecord(null, ac.getId(), "name2", "des2", null, BigDecimal.ZERO, new GregorianCalendar())
                     );
         saveTransactionHistory(trHistory);
-        Account ac2 = getAccount(2L, 2L, "name2", "description two", null);
-        Account ac2Copy = getAccount(2L, 2L, "name2", "description two", null);
+        Account ac2 = getAccount(ac.getId() + 1, 2L, "name2", "description two", null);
+        Account ac2Copy = getAccount(ac.getId() + 1, 2L, "name2", "description two", null);
         //null props
         Account fromDB = doLoadTransactionHistory(ac2, null);
         deepEquals(fromDB, ac2Copy);
@@ -800,12 +878,13 @@ public abstract class AccountServiceAbstractTest
                     );
         saveTransactionHistory(trHistory);
         Account acShallowCopy = getAccount(ac.getId(), 1L, null, null, trHistory);
-        Account acShallowCopyToLoad = getAccount(ac.getId(), 1L, null, null, null);
         //null props
+        Account acShallowCopyToLoad = getAccount(ac.getId(), 1L, null, null, null);
         Account fromDB = doLoadTransactionHistory(acShallowCopyToLoad, null);
         //no field should be changed (except transaction history), even with null name
         deepEquals(fromDB, acShallowCopy);
         //empty props
+        acShallowCopyToLoad = getAccount(ac.getId(), 1L, null, null, null);
         fromDB = doLoadTransactionHistory(acShallowCopyToLoad, new Properties());
         deepEquals(fromDB, acShallowCopy);
     }
@@ -2028,24 +2107,28 @@ public abstract class AccountServiceAbstractTest
     @Test
     public void getNamesEmptyDB() throws AccountServiceException{
         Map map = doGetAccountsName(1L);
-        assertNotNull(map);
-        assertTrue(map.isEmpty());
+        assertNotNull("map should not be empty", map);
+        assertTrue("map should be empty", map.isEmpty());
     }
     
     @Test
     public void getNamesOkArgument() throws AccountServiceException{
         Account ac1 = getAccount(null, 1L, "name1", "desc1", null);
         Account ac2 = getAccount(null, 1L, "name2", "desc2", null);
+        Account ac3 = getAccount(null, 2L, "name3", "desc3", null);
         saveObject(ac1);
         saveObject(ac2);
+        saveObject(ac3);
         Map<Long, String> fromDB = doGetAccountsName(1L);
         Map<Long, String> expected = new HashMap<>();
         expected.put(ac1.getId(), ac1.getName());
         expected.put(ac2.getId(), ac2.getName());
-        for(Long key : fromDB.keySet()){
-            String name = fromDB.get(key);
-            assertEquals(name, expected.get(key));
-        }
+        deepMapEquals(fromDB, expected);
+        
+        deleteObject(ac1);
+        expected.remove(ac1.getId());
+        fromDB = doGetAccountsName(1L);
+        deepMapEquals(fromDB, expected);
     }
     
     private void checkLoadWithProps(Account accountToBeLoaded,
