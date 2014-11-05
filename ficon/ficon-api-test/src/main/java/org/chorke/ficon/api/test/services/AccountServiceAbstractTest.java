@@ -206,20 +206,20 @@ public abstract class AccountServiceAbstractTest
      * 
      * @param fromAccount
      * @param toAccount
-     * @param amount
+     * @param template
      * @throws AccountServiceException 
      * @see #beforeTransferMoney(org.chorke.ficon.api.objects.Account, org.chorke.ficon.api.objects.Account, java.math.BigDecimal) 
      * @see #afterTransferMoney(java.lang.Exception, org.chorke.ficon.api.objects.Account, org.chorke.ficon.api.objects.Account, java.math.BigDecimal) 
      * @see AccountService#transferMoney(org.chorke.ficon.api.objects.Account, org.chorke.ficon.api.objects.Account, java.math.BigDecimal) 
      */
-    protected final void doTransferMoney(Account fromAccount, Account toAccount, BigDecimal amount)
+    protected final void doTransferMoney(Account fromAccount, Account toAccount, TransactionRecord template)
             throws AccountServiceException{
         try{
-            beforeTransferMoney(fromAccount, toAccount, amount);
-            service.transferMoney(fromAccount, toAccount, amount);
-            afterTransferMoney(null, fromAccount, toAccount, amount);
+            beforeTransferMoney(fromAccount, toAccount, template);
+            service.transferMoney(fromAccount, toAccount, template);
+            afterTransferMoney(null, fromAccount, toAccount, template);
         } catch (AccountServiceException | IllegalArgumentException ex){
-            afterTransferMoney(ex, fromAccount, toAccount, amount);
+            afterTransferMoney(ex, fromAccount, toAccount, template);
             throw ex;
         }
     }
@@ -354,18 +354,19 @@ public abstract class AccountServiceAbstractTest
      * 
      * @param fromAccount
      * @param toAccount
-     * @param amount 
+     * @param template
      */
-    protected abstract void beforeTransferMoney(Account fromAccount, Account toAccount, BigDecimal amount);
+    protected abstract void beforeTransferMoney(Account fromAccount, Account toAccount, TransactionRecord template);
     /**
      * This method is executed immediately after calling transferMoney method of service.
      * 
      * @param thrown exception that has been thrown during operation
      * @param fromAccount
      * @param toAccount
-     * @param amount 
+     * @param template 
      */
-    protected abstract void afterTransferMoney(Exception thrown, Account fromAccount, Account toAccount, BigDecimal amount);
+    protected abstract void afterTransferMoney(Exception thrown, Account fromAccount, Account toAccount,
+            TransactionRecord template);
 
     /**
      * This method is executed closely before calling update method of service.
@@ -409,6 +410,14 @@ public abstract class AccountServiceAbstractTest
      */
     protected abstract void saveTransactionHistory(List<TransactionRecord> records);
     
+    /**
+     * Updates transaction stroed in DB. Transaction is
+     * updated independently of any service.
+     * 
+     * @param tr 
+     */
+    protected abstract void updateTransaction(TransactionRecord tr);
+    
       ////////////////////////////////////////////////////////////////
      ///////////////////          tests          ////////////////////
     ////////////////////////////////////////////////////////////////
@@ -440,16 +449,37 @@ public abstract class AccountServiceAbstractTest
         fail("empty name");
     }
     
+    @Test(expected = IllegalArgumentException.class)
+    public void createIllegalNameStar() throws AccountServiceException{
+        Account ac = getAccount(null, 1L, "name1*", null, null);
+        doCreateNewAccount(ac);
+        fail("illegal name: non-alfa-numeric character *");
+    }
+    
+    @Test(expected = IllegalArgumentException.class)
+    public void createIllegalNameQuestionMark() throws AccountServiceException{
+        Account ac = getAccount(null, 1L, "name1?", null, null);
+        doCreateNewAccount(ac);
+        fail("illegal name: non-alfa-numeric character ?");
+    }
+    
+    @Test(expected = IllegalArgumentException.class)
+    public void createIllegalNamePercent() throws AccountServiceException{
+        Account ac = getAccount(null, 1L, "name1%", null, null);
+        doCreateNewAccount(ac);
+        fail("illegal name: non-alfa-numeric character %");
+    }
+    
     @Test
     public void createOKAccountNoTransactionHistory() throws AccountServiceException{
-        Account ac = getAccount(null, 1L, "okaccount", "this account should be OK", null);
+        Account ac = getAccount(null, 1L, "okaccount", "this account should be OK?&*", null);
         doCreateNewAccount(ac);
         if(ac.getId() == null){
             fail("Id has not been set.");
         }
         Account inDB = getObject(ac.getId());
-        Account acCopy = getAccount(ac.getId(), 1L, "okaccount", "this account should be OK", null);
-        deepEquals(acCopy, inDB);
+        Account acCopy = getAccount(ac.getId(), 1L, "okaccount", "this account should be OK?&*", null);
+        deepEquals(acCopy, inDB, false);
     }
     
     @Test(expected = IllegalArgumentException.class)
@@ -495,7 +525,7 @@ public abstract class AccountServiceAbstractTest
         saveObject(ac);
         Account acToDelete = getAccount(ac.getId() + 1, 1L, "name", "des", null);
         doDeleteAccount(acToDelete);
-        deepListAccountsEquals(getAllObjects(), Arrays.asList(ac));
+        deepCollectionsAccountsEquals(getAllObjects(), Arrays.asList(ac), false);
     }
     
     @Test
@@ -520,6 +550,15 @@ public abstract class AccountServiceAbstractTest
                 BigDecimal.ONE, new GregorianCalendar(2014, Calendar.JANUARY, 6));
         
         saveTransactionHistory(Arrays.asList(ac_tr1, ac_tr2, ac1_tr1, ac1_tr2, ac2_tr1, ac2_tr2));
+        ac_tr1.setAssociatedTransactionID(ac1_tr1.getId());
+        ac1_tr1.setAssociatedTransactionID(ac_tr1.getId());
+        ac2_tr1.setAssociatedTransactionID(ac2_tr2.getId());
+        ac2_tr2.setAssociatedTransactionID(ac2_tr1.getId());
+        updateTransaction(ac_tr1);
+        updateTransaction(ac1_tr1);
+        updateTransaction(ac2_tr1);
+        updateTransaction(ac2_tr2);
+        
         ac.addTransaction(ac_tr1);
         ac.addTransaction(ac_tr2);
         ac1.addTransaction(ac1_tr1);
@@ -535,9 +574,10 @@ public abstract class AccountServiceAbstractTest
             fail("transaction hostory has not been deleted");
         }
         
-        deepListAccountsEquals(getAllObjects(), Arrays.asList(ac1, ac2));
+        deepCollectionsAccountsEquals(getAllObjects(), Arrays.asList(ac1, ac2), false);
         
-        deepListTransactionsEquals(getAllStoredTransactions(),
+        ac1_tr1.setAssociatedTransactionID(null);
+        deepCollectionsTransactionsEquals(getAllStoredTransactions(),
                 Arrays.asList(ac1_tr1, ac1_tr2, ac2_tr1, ac2_tr2));
     }
     
@@ -568,6 +608,27 @@ public abstract class AccountServiceAbstractTest
     }
     
     @Test(expected = IllegalArgumentException.class)
+    public void updateIllegalNameStar() throws AccountServiceException{
+        Account ac = getAccount(1L, 1L, "name*", "desc", null);
+        doUpdateAccount(ac);
+        fail("illegal name: *");
+    }
+    
+    @Test(expected = IllegalArgumentException.class)
+    public void updateIllegalNameQuectionMark() throws AccountServiceException{
+        Account ac = getAccount(1L, 1L, "na?me", "desc", null);
+        doUpdateAccount(ac);
+        fail("illegal name: *");
+    }
+    
+    @Test(expected = IllegalArgumentException.class)
+    public void updateIllegalNamePercent() throws AccountServiceException{
+        Account ac = getAccount(1L, 1L, "%name", "desc", null);
+        doUpdateAccount(ac);
+        fail("illegal name: %");
+    }
+    
+    @Test(expected = IllegalArgumentException.class)
     public void updateEmptyName() throws AccountServiceException{
         Account ac = getAccount(1L, 1L, "", "desc", null);
         doUpdateAccount(ac);
@@ -580,16 +641,18 @@ public abstract class AccountServiceAbstractTest
         saveObject(ac);
         ac.setName("nameafter");
         doUpdateAccount(ac);
-        deepEquals(ac, getObject(ac.getId()));
+        Account acCopy = getAccount(ac.getId(), 1L, "nameafter", "description before update", null);
+        deepEquals(acCopy, getObject(ac.getId()), false);
     }
     
     @Test
     public void updateOkArgumentDescriptionChanged() throws AccountServiceException{
         Account ac = getAccount(null, 1L, "namebefore", "description before update", null);
         saveObject(ac);
-        ac.setDescription("desription after update");
+        ac.setDescription("desription after update?&*");
         doUpdateAccount(ac);
-        deepEquals(ac, getObject(ac.getId()));
+        Account acCopy = getAccount(ac.getId(), 1L, "namebefore", "desription after update?&*", null);
+        deepEquals(acCopy, getObject(ac.getId()), false);
     }
     
     @Test
@@ -598,7 +661,8 @@ public abstract class AccountServiceAbstractTest
         saveObject(ac);
         ac.setDescription("");
         doUpdateAccount(ac);
-        deepEquals(ac, getObject(ac.getId()));
+        Account acCopy = getAccount(ac.getId(), 1L, "namebefore", "", null);
+        deepEquals(acCopy, getObject(ac.getId()), false);
     }
     
     @Test
@@ -607,7 +671,8 @@ public abstract class AccountServiceAbstractTest
         saveObject(ac);
         ac.setDescription(null);
         doUpdateAccount(ac);
-        deepEquals(ac, getObject(ac.getId()));
+        Account acCopy = getAccount(ac.getId(), 1L, "namebefore", null, null);
+        deepEquals(acCopy, getObject(ac.getId()), false);
     }
     
     @Test
@@ -617,7 +682,8 @@ public abstract class AccountServiceAbstractTest
         ac.setName("nameafter");
         ac.setDescription("desription after update");
         doUpdateAccount(ac);
-        deepEquals(ac, getObject(ac.getId()));
+        Account acCopy = getAccount(ac.getId(), 1L, "nameafter", "desription after update", null);
+        deepEquals(acCopy, getObject(ac.getId()), false);
     }
     
     @Test(expected = AccountServiceException.class)
@@ -630,7 +696,7 @@ public abstract class AccountServiceAbstractTest
             fail("account not in DB");
         } catch (AccountServiceException ex){
             Account acClone = getAccount(ac.getId(), 1L, "namebefore", "description before update", null);
-            deepListAccountsEquals(Arrays.asList(acClone), getAllObjects());
+            deepCollectionsAccountsEquals(Arrays.asList(acClone), getAllObjects(), false);
             throw ex;
         }
     }
@@ -646,7 +712,7 @@ public abstract class AccountServiceAbstractTest
             fail("user's ID has been changed");
         } catch (AccountServiceException ex){
             Account acClone = getAccount(ac.getId(), 1L, "namebefore", "description before update", null);
-            deepListAccountsEquals(Arrays.asList(acClone), getAllObjects());
+            deepCollectionsAccountsEquals(Arrays.asList(acClone), getAllObjects(), false);
             throw ex;
         }
     }
@@ -675,7 +741,7 @@ public abstract class AccountServiceAbstractTest
         Account ac = getAccount(null, 1L, "name", "description of the account", null);
         saveObject(ac);
         Account fromDB = doGetBasicAccount(ac.getId());
-        deepEquals(fromDB, ac);
+        deepEquals(fromDB, ac, false);
     }
     
     @Test(expected = IllegalArgumentException.class)
@@ -716,7 +782,7 @@ public abstract class AccountServiceAbstractTest
         ac.addTransaction(trHistory.get(0));
         ac.addTransaction(trHistory.get(1));
         Account fromDB = doGetFullAccount(ac.getId());
-        deepEquals(fromDB, ac);
+        deepEquals(fromDB, ac, true);
     }
     
     @Test(expected = IllegalArgumentException.class)
@@ -751,7 +817,7 @@ public abstract class AccountServiceAbstractTest
         //method should not change account's name and description (i.e. new name
         //has been set but account has not been updated in DB yet)
         Account acCopy = getAccount(1L, 1L, "name", "desc", null);
-        deepEquals(acCopy, fromDB);
+        deepEquals(acCopy, fromDB, true);
     }
     
     @Test
@@ -766,7 +832,7 @@ public abstract class AccountServiceAbstractTest
         Account ac2 = getAccount(ac.getId() + 1, 2L, "name2", "description two", null);
         Account ac2Copy = getAccount(ac.getId() + 1, 2L, "name2", "description two", null);
         Account fromDB = doLoadTransactionHistory(ac2);
-        deepEquals(fromDB, ac2Copy);
+        deepEquals(fromDB, ac2Copy, true);
     }
     
     @Test
@@ -777,7 +843,7 @@ public abstract class AccountServiceAbstractTest
         Account acShallowCopyToLoad = getAccount(ac.getId(), 1L, null, null, null);
         Account fromDB = doLoadTransactionHistory(acShallowCopyToLoad);
         //no field should be changed, even with null name
-        deepEquals(fromDB, acShallowCopy);
+        deepEquals(fromDB, acShallowCopy, true);
     }
     
     @Test
@@ -793,7 +859,7 @@ public abstract class AccountServiceAbstractTest
         Account acShallowCopyToLoad = getAccount(ac.getId(), 1L, null, null, null);
         Account fromDB = doLoadTransactionHistory(acShallowCopyToLoad);
         //no field should be changed (except transaction history), even with null name
-        deepEquals(fromDB, acShallowCopy);
+        deepEquals(fromDB, acShallowCopy, true);
     }
     
     @Test(expected = IllegalArgumentException.class)
@@ -828,10 +894,10 @@ public abstract class AccountServiceAbstractTest
         //method should not change account's name and description (i.e. new name
         //has been set but account has not been updated in DB yet)
         Account acCopy = getAccount(1L, 1L, "name", "desc", null);
-        deepEquals(acCopy, fromDB);
+        deepEquals(acCopy, fromDB, true);
         //empty props
         fromDB = doLoadTransactionHistory(acCopy, new Properties());
-        deepEquals(acCopy, fromDB);
+        deepEquals(acCopy, fromDB, true);
     }
     
     @Test
@@ -847,10 +913,10 @@ public abstract class AccountServiceAbstractTest
         Account ac2Copy = getAccount(ac.getId() + 1, 2L, "name2", "description two", null);
         //null props
         Account fromDB = doLoadTransactionHistory(ac2, null);
-        deepEquals(fromDB, ac2Copy);
+        deepEquals(fromDB, ac2Copy, true);
         //empty props
         fromDB = doLoadTransactionHistory(ac2, new Properties());
-        deepEquals(fromDB, ac2Copy);
+        deepEquals(fromDB, ac2Copy, true);
     }
     
     @Test
@@ -862,10 +928,10 @@ public abstract class AccountServiceAbstractTest
         //null props
         Account fromDB = doLoadTransactionHistory(acShallowCopyToLoad, null);
         //no field should be changed, even with null name
-        deepEquals(fromDB, acShallowCopy);
+        deepEquals(fromDB, acShallowCopy, true);
         //empty props
         fromDB = doLoadTransactionHistory(acShallowCopyToLoad, new Properties());
-        deepEquals(fromDB, acShallowCopy);
+        deepEquals(fromDB, acShallowCopy, true);
     }
     
     @Test
@@ -882,11 +948,11 @@ public abstract class AccountServiceAbstractTest
         Account acShallowCopyToLoad = getAccount(ac.getId(), 1L, null, null, null);
         Account fromDB = doLoadTransactionHistory(acShallowCopyToLoad, null);
         //no field should be changed (except transaction history), even with null name
-        deepEquals(fromDB, acShallowCopy);
+        deepEquals(fromDB, acShallowCopy, true);
         //empty props
         acShallowCopyToLoad = getAccount(ac.getId(), 1L, null, null, null);
         fromDB = doLoadTransactionHistory(acShallowCopyToLoad, new Properties());
-        deepEquals(fromDB, acShallowCopy);
+        deepEquals(fromDB, acShallowCopy, true);
     }
     
       ////////////////////////////////////////////
@@ -1039,15 +1105,7 @@ public abstract class AccountServiceAbstractTest
                     //3
                     getTransactionRecord(null, ac.getId(),
                         "name14", "des4", null, new BigDecimal("10"),
-                        new GregorianCalendar(2014, Calendar.JULY, 2, 4, 30)),
-                    //4
-                    getTransactionRecord(null, ac.getId(),
-                        "name*", "des5", null, new BigDecimal("50"),
-                        new GregorianCalendar(2014, Calendar.JULY, 1, 4, 30)),
-                    //5
-                    getTransactionRecord(null, ac.getId(),
-                        "name?", "des6", null, new BigDecimal("100"),
-                        new GregorianCalendar(2014, Calendar.JUNE, 2, 4, 30))
+                        new GregorianCalendar(2014, Calendar.JULY, 2, 4, 30))
                     );
         saveTransactionHistory(trHistory);
         Properties prop = new Properties();
@@ -1064,14 +1122,7 @@ public abstract class AccountServiceAbstractTest
         checkLoadWithProps(ac, trHistory, prop);
         
         prop.put(AccountService.LoadProperties.NAME_LIKE, "name?");
-        checkLoadWithProps(ac, Arrays.asList(trHistory.get(0), trHistory.get(1),
-                trHistory.get(4), trHistory.get(5)), prop);
-        
-        prop.put(AccountService.LoadProperties.NAME_LIKE, "name/*");
-        checkLoadWithProps(ac, Arrays.asList(trHistory.get(4)), prop);
-        
-        prop.put(AccountService.LoadProperties.NAME_LIKE, "name/?");
-        checkLoadWithProps(ac, Arrays.asList(trHistory.get(5)), prop);
+        checkLoadWithProps(ac, Arrays.asList(trHistory.get(0), trHistory.get(1)), prop);
     }
     
       ////////////////////////
@@ -1780,6 +1831,7 @@ public abstract class AccountServiceAbstractTest
     @Test
     public void loadWithPropsFromToDateMinAmountNameLike() throws AccountServiceException{
         Account ac = getAccount(null, 1L, "account", "test account", null);
+        saveObject(ac);
         List<TransactionRecord> trHistory = Arrays.asList(
                     //0
                     getTransactionRecord(null, ac.getId(), 
@@ -1818,6 +1870,7 @@ public abstract class AccountServiceAbstractTest
     @Test
     public void loadWithPropsFromToDateMaxAmountNameLike() throws AccountServiceException{
         Account ac = getAccount(null, 1L, "account", "test account", null);
+        saveObject(ac);
         List<TransactionRecord> trHistory = Arrays.asList(
                     //0
                     getTransactionRecord(null, ac.getId(), 
@@ -1856,6 +1909,7 @@ public abstract class AccountServiceAbstractTest
     @Test
     public void loadWithPropsFromDateMinMaxAmountNameLike() throws AccountServiceException{
         Account ac = getAccount(null, 1L, "account", "test account", null);
+        saveObject(ac);
         List<TransactionRecord> trHistory = Arrays.asList(
                     //0
                     getTransactionRecord(null, ac.getId(), 
@@ -1894,6 +1948,7 @@ public abstract class AccountServiceAbstractTest
     @Test
     public void loadWithPropsToDateMinMaxAmountNameLike() throws AccountServiceException{
         Account ac = getAccount(null, 1L, "account", "test account", null);
+        saveObject(ac);
         List<TransactionRecord> trHistory = Arrays.asList(
                     //0
                     getTransactionRecord(null, ac.getId(), 
@@ -1940,6 +1995,7 @@ public abstract class AccountServiceAbstractTest
     @Test
     public void loadWithPropsFromToDateMinMaxAmountNameLike() throws AccountServiceException{
         Account ac = getAccount(null, 1L, "account", "test account", null);
+        saveObject(ac);
         List<TransactionRecord> trHistory = Arrays.asList(
                     //0
                     getTransactionRecord(null, ac.getId(), 
@@ -1981,17 +2037,22 @@ public abstract class AccountServiceAbstractTest
      ///// end five props /////
     //////////////////////////
     
+    private TransactionRecord templateAmountOne = getTransactionRecord(null, 1L, "transactionOne",
+            "transfering money: amount 1€", null, BigDecimal.ONE, new GregorianCalendar());
+    private TransactionRecord templateAmountTen = getTransactionRecord(null, 1L, "transactionTen",
+            "transfering money: amount 10€", null, BigDecimal.TEN, new GregorianCalendar());
+    
     @Test(expected = IllegalArgumentException.class)
     public void transferFirstArgumentNull() throws AccountServiceException{
         Account ac = getAccount(1L, 1L, "name", "description", null);
-        doTransferMoney(null, ac, BigDecimal.ONE);
+        doTransferMoney(null, ac, templateAmountOne);
         fail("null first argument");
     }
     
     @Test(expected = IllegalArgumentException.class)
     public void transferSecondArgumentNull() throws AccountServiceException{
         Account ac = getAccount(1L, 1L, "name", "description", null);
-        doTransferMoney(ac, null, BigDecimal.ONE);
+        doTransferMoney(ac, null, templateAmountOne);
         fail("null second argument");
     }
     
@@ -2007,7 +2068,7 @@ public abstract class AccountServiceAbstractTest
     public void transferFromAndToHaveSameID() throws AccountServiceException{
         Account from = getAccount(1L, 1L, "from", "from account", null);
         Account to = getAccount(1L, 1L, "to", "to account", null);
-        doTransferMoney(from, to, BigDecimal.ONE);
+        doTransferMoney(from, to, templateAmountOne);
         fail("from and to have same ID");
     }
     
@@ -2015,15 +2076,19 @@ public abstract class AccountServiceAbstractTest
     public void transferZeroAmount() throws AccountServiceException{
         Account from = getAccount(1L, 1L, "from", "from account", null);
         Account to = getAccount(2L, 1L, "to", "to account", null);
-        doTransferMoney(from, to, BigDecimal.ZERO);
+        TransactionRecord templateAmountZero = getTransactionRecord(null, 1L, "transactionZero",
+            "transfering money: amount 0€", null, BigDecimal.ZERO, new GregorianCalendar());
+        doTransferMoney(from, to, templateAmountZero);
         fail("nothing to transfer");
     }
     
     @Test
     public void transferOkArgumentsEmptyHistory() throws AccountServiceException{
-        Account from = getAccount(1L, 1L, "from", "from account", null);
-        Account to = getAccount(2L, 1L, "to", "to account", null);
-        doTransferMoney(from, to, BigDecimal.TEN);
+        Account from = getAccount(null, 1L, "from", "from account", null);
+        Account to = getAccount(null, 1L, "to", "to account", null);
+        saveObject(from);
+        saveObject(to);
+        doTransferMoney(from, to, templateAmountTen);
         
         assertEquals(0, BigDecimal.TEN.negate().compareTo(from.getBalance()));
         assertEquals(0, BigDecimal.TEN.compareTo(to.getBalance()));
@@ -2032,34 +2097,37 @@ public abstract class AccountServiceAbstractTest
         
         TransactionRecord deposit = to.getTransactions().get(0);
         TransactionRecord withdraw = from.getTransactions().get(0);
-        TransactionRecord depositCopy = getTransactionRecord(
-                deposit.getId(), deposit.getAccountID(), deposit.getName(),
-                deposit.getDescription(), deposit.getAssociatedTransactionID(),
-                deposit.getAmount(), deposit.getTransactionTime());
+         TransactionRecord depositCopy = getTransactionRecord(
+                deposit.getId(), to.getId(), templateAmountTen.getName(),
+                templateAmountTen.getDescription(), withdraw.getId(),
+                templateAmountTen.getAmount(), templateAmountTen.getTransactionTime());
         TransactionRecord withdrawCopy = getTransactionRecord(
-                withdraw.getId(), withdraw.getAccountID(), withdraw.getName(),
-                withdraw.getDescription(), withdraw.getAssociatedTransactionID(),
-                withdraw.getAmount(), withdraw.getTransactionTime());
+                withdraw.getId(), from.getId(), templateAmountTen.getName(),
+                templateAmountTen.getDescription(), deposit.getId(),
+                templateAmountTen.getAmount().negate(), templateAmountTen.getTransactionTime());
         
         List<TransactionRecord> fromHistory = getTransactionHistoryOfAccount(from.getId());
         List<TransactionRecord> toHistory = getTransactionHistoryOfAccount(to.getId());
-        deepListTransactionsEquals(fromHistory, Arrays.asList(withdrawCopy));
-        deepListTransactionsEquals(toHistory, Arrays.asList(depositCopy));
+        deepCollectionsTransactionsEquals(fromHistory, Arrays.asList(withdrawCopy));
+        deepCollectionsTransactionsEquals(toHistory, Arrays.asList(depositCopy));
+        //TODO - check transaction;
     }
     
     @Test
     public void transferOkArgumentsWithHistory() throws AccountServiceException{
-        Account from = getAccount(1L, 1L, "from", "from account", null);
-        Account to = getAccount(2L, 1L, "to", "to account", null);
+        Account from = getAccount(null, 1L, "from", "from account", null);
+        Account to = getAccount(null, 1L, "to", "to account", null);
+        saveObject(from);
+        saveObject(to);
         TransactionRecord fromAccountRecord = getTransactionRecord(
-                null, 1L, "oldfrom", "old transaction", null, BigDecimal.ONE, new GregorianCalendar());
+                null, from.getId(), "oldfrom", "old transaction", null, BigDecimal.ONE, new GregorianCalendar());
         TransactionRecord toAccountRecord = getTransactionRecord(
-                null, 2L, "oldto", "old transaction", null, BigDecimal.TEN, new GregorianCalendar());
+                null, to.getId(), "oldto", "old transaction", null, BigDecimal.TEN, new GregorianCalendar());
         saveTransactionHistory(Arrays.asList(fromAccountRecord, toAccountRecord));
         from.addTransaction(fromAccountRecord);
         to.addTransaction(toAccountRecord);
         
-        doTransferMoney(from, to, BigDecimal.TEN);
+        doTransferMoney(from, to, templateAmountTen);
         
         assertEquals(0, BigDecimal.ONE.subtract(BigDecimal.TEN).compareTo(from.getBalance()));
         assertEquals(0, BigDecimal.TEN.add(BigDecimal.TEN).compareTo(to.getBalance()));
@@ -2075,18 +2143,18 @@ public abstract class AccountServiceAbstractTest
             withdraw = from.getTransactions().get(0);
         }
         TransactionRecord depositCopy = getTransactionRecord(
-                deposit.getId(), deposit.getAccountID(), deposit.getName(),
-                deposit.getDescription(), deposit.getAssociatedTransactionID(),
-                deposit.getAmount(), deposit.getTransactionTime());
+                deposit.getId(), to.getId(), templateAmountTen.getName(),
+                templateAmountTen.getDescription(), withdraw.getId(),
+                templateAmountTen.getAmount(), templateAmountTen.getTransactionTime());
         TransactionRecord withdrawCopy = getTransactionRecord(
-                withdraw.getId(), withdraw.getAccountID(), withdraw.getName(),
-                withdraw.getDescription(), withdraw.getAssociatedTransactionID(),
-                withdraw.getAmount(), withdraw.getTransactionTime());
+                withdraw.getId(), from.getId(), templateAmountTen.getName(),
+                templateAmountTen.getDescription(), deposit.getId(),
+                templateAmountTen.getAmount().negate(), templateAmountTen.getTransactionTime());
         
         List<TransactionRecord> fromHistory = getTransactionHistoryOfAccount(from.getId());
         List<TransactionRecord> toHistory = getTransactionHistoryOfAccount(to.getId());
-        deepListTransactionsEquals(fromHistory, Arrays.asList(withdrawCopy, fromAccountRecord));
-        deepListTransactionsEquals(toHistory, Arrays.asList(depositCopy, toAccountRecord));
+        deepCollectionsTransactionsEquals(fromHistory, Arrays.asList(withdrawCopy, fromAccountRecord));
+        deepCollectionsTransactionsEquals(toHistory, Arrays.asList(depositCopy, toAccountRecord));
     }
     
     @Test(expected = IllegalArgumentException.class)
@@ -2139,6 +2207,6 @@ public abstract class AccountServiceAbstractTest
         Account expected = getAccount(accountToBeLoaded.getId(),
                 accountToBeLoaded.getUsersID(), null, null, expectedTransactionHistory);
         Account fromDB = doLoadTransactionHistory(toLoad, loadProps);
-        deepEquals(fromDB, expected);
+        deepEquals(fromDB, expected, true);
     }
 }

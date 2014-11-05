@@ -1,11 +1,11 @@
 
 package org.chorke.ficon.api.services;
 
-import java.math.BigDecimal;
 import java.util.Map;
 import java.util.Properties;
 import org.chorke.ficon.api.exceptions.AccountServiceException;
 import org.chorke.ficon.api.objects.Account;
+import org.chorke.ficon.api.objects.TransactionRecord;
 
 /**
  *
@@ -33,8 +33,7 @@ public interface AccountService {
         /**
          * Name of transaction. It is possible to use '*' character, which 
          * match any characters (any length), or '?' which match any single
-         * character. If you want to use '*' or '?' (or '/') as part of required
-         * name then escape it with '/'.
+         * character.
          */
         public static final String NAME_LIKE = "name.like";
     }
@@ -120,13 +119,14 @@ public interface AccountService {
      * 
      * @param from source account (withdraw)
      * @param to destination account (deposit)
-     * @param ammount ammount of money (if negative source and destination accounts
+     * @param template contains name, description, transaction time and 
+     *  ammount of money (if negative source and destination accounts
      * will be swapped)
      * @throws AccountServiceException if some error occurs
      * @throws IllegalArgumentException if some argument has either inappropriate
      *      field or is null.
      */
-    void transferMoney(Account from, Account to, BigDecimal ammount) throws AccountServiceException;
+    void transferMoney(Account from, Account to, TransactionRecord template) throws AccountServiceException;
     
     /**
      * Returns IDs and names of all accounts of user with ID {@code usersID}.

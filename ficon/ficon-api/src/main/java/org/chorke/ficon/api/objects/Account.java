@@ -201,4 +201,25 @@ public class Account {
         transactions.clear();
         transactionsIDs.clear();
     }
+
+    @Override
+    public String toString() {
+        return "Account: " + name + "[id: " +  id + ", belongs to user: "
+                + usersID + "] {description: " + description 
+                + "}, number of transactions: " + transactions.size();
+    }
+    
+    @Override
+    public int hashCode() {
+        return id == null ? Account.class.getName().hashCode() : id.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if(obj instanceof Account){
+            Long objId = ((Account)obj).getId();
+            return id == null ? objId == null : id.equals(objId);
+        }
+        return false;
+    }
 }

@@ -225,6 +225,33 @@ public abstract class TransactionRecordServiceAbstractTest
     }
     
     @Test(expected = IllegalArgumentException.class)
+    public void createIllegalNameStar() throws TransactionRecordServiceException{
+        TransactionRecord tr = getTransactionRecord(null, 1L,
+                "name*", "description", null, BigDecimal.ONE,
+                new GregorianCalendar(2014, Calendar.JANUARY, 13));
+        doCreateNewTransactionRecord(tr);
+        fail("illegal name: *");
+    }
+    
+    @Test(expected = IllegalArgumentException.class)
+    public void createIllegalNameQuestionMark() throws TransactionRecordServiceException{
+        TransactionRecord tr = getTransactionRecord(null, 1L,
+                "name?", "description", null, BigDecimal.ONE,
+                new GregorianCalendar(2014, Calendar.JANUARY, 13));
+        doCreateNewTransactionRecord(tr);
+        fail("illegal name: ?");
+    }
+    
+    @Test(expected = IllegalArgumentException.class)
+    public void createIllegalNamePercent() throws TransactionRecordServiceException{
+        TransactionRecord tr = getTransactionRecord(null, 1L,
+                "name%", "description", null, BigDecimal.ONE,
+                new GregorianCalendar(2014, Calendar.JANUARY, 13));
+        doCreateNewTransactionRecord(tr);
+        fail("illegal name: %");
+    }
+    
+    @Test(expected = IllegalArgumentException.class)
     public void createNullAmount() throws TransactionRecordServiceException{
         TransactionRecord tr = getTransactionRecord(null, 1L,
                 "name", "description", null, null,
@@ -254,11 +281,11 @@ public abstract class TransactionRecordServiceAbstractTest
     @Test
     public void createOkArgumentDescriptionSet() throws TransactionRecordServiceException{
         TransactionRecord tr = getTransactionRecord(null, 1L,
-                "name", "description", null, BigDecimal.ONE,
+                "name", "descrip%tion", null, BigDecimal.ONE,
                 new GregorianCalendar(2014, Calendar.JANUARY, 13));
         doCreateNewTransactionRecord(tr);
         TransactionRecord trClone = getTransactionRecord(tr.getId(), 1L,
-                "name", "description", null, BigDecimal.ONE,
+                "name", "descrip%tion", null, BigDecimal.ONE,
                 new GregorianCalendar(2014, Calendar.JANUARY, 13));
         TransactionRecord fromDB = getObject(tr.getId());
         deepEquals(trClone, fromDB);
@@ -331,7 +358,30 @@ public abstract class TransactionRecordServiceAbstractTest
                 new GregorianCalendar(2014, Calendar.JANUARY, 13));
         doDeleteTransactionRecord(notInDB);
         Collection<TransactionRecord> fromDB = getAllObjects();
-        deepListTransactionsEquals(Arrays.asList(tr), fromDB);
+        deepCollectionsTransactionsEquals(Arrays.asList(tr), fromDB);
+    }
+    
+    @Test
+    public void deleteOkArgumentAssociatedTransactionPresent() throws TransactionRecordServiceException{
+        TransactionRecord tr1 = getTransactionRecord(null, 1L,
+                "name", "description", null, BigDecimal.ONE,
+                new GregorianCalendar(2014, Calendar.JANUARY, 13));
+        TransactionRecord tr2 = getTransactionRecord(null, 2L,
+                "name2", "description1", null, BigDecimal.TEN,
+                new GregorianCalendar(2014, Calendar.JANUARY, 14));
+        saveObject(tr1);
+        saveObject(tr2);
+        tr1.setAssociatedTransactionID(tr2.getId());
+        tr2.setAssociatedTransactionID(tr1.getId());
+        updateObject(tr1);
+        updateObject(tr2);
+        deepCollectionsTransactionsEquals(getAllObjects(), Arrays.asList(tr1, tr2));
+        
+        doDeleteTransactionRecord(tr1);
+        TransactionRecord tr2Clone = getTransactionRecord(tr2.getId(), 2L,
+                "name2", "description1", null, BigDecimal.TEN, //without ID
+                new GregorianCalendar(2014, Calendar.JANUARY, 14));
+        deepCollectionsTransactionsEquals(getAllObjects(), Arrays.asList(tr2Clone));
     }
     
     @Test
@@ -342,12 +392,12 @@ public abstract class TransactionRecordServiceAbstractTest
         TransactionRecord tr2 = getTransactionRecord(null, 2L,
                 "name2", "description1", null, BigDecimal.TEN,
                 new GregorianCalendar(2014, Calendar.JANUARY, 14));
-        TransactionRecord tr1ForDelete = getTransactionRecord(tr1.getId(), 1L,
-                null, null, null, null, null);
         saveObject(tr1);
         saveObject(tr2);
+        TransactionRecord tr1ForDelete = getTransactionRecord(tr1.getId(), 1L,
+                null, null, null, null, null);
         doDeleteTransactionRecord(tr1ForDelete);
-        deepListTransactionsEquals(getAllObjects(), Arrays.asList(tr2));
+        deepCollectionsTransactionsEquals(getAllObjects(), Arrays.asList(tr2));
     }
     
     ////////// update //////////
@@ -383,7 +433,7 @@ public abstract class TransactionRecordServiceAbstractTest
             TransactionRecord trClone = getTransactionRecord(tr.getId(), 1L,
                 "name", "description", null, BigDecimal.ONE,
                 new GregorianCalendar(2014, Calendar.JANUARY, 13));
-            deepListTransactionsEquals(Arrays.asList(trClone), getAllObjects());
+            deepCollectionsTransactionsEquals(Arrays.asList(trClone), getAllObjects());
             throw ex;
         }
     }
@@ -391,12 +441,12 @@ public abstract class TransactionRecordServiceAbstractTest
     @Test(expected = IllegalArgumentException.class)
     public void updateEmptyName() throws TransactionRecordServiceException{
         TransactionRecord tr = getTransactionRecord(null, 1L,
-                "", "description", null, BigDecimal.ONE,
+                "name", "description", null, BigDecimal.ONE,
                 new GregorianCalendar(2014, Calendar.JANUARY, 13));
         saveObject(tr);
         TransactionRecord trToUpdate = getTransactionRecord(tr.getId(), 1L,
-                "", "description", null, BigDecimal.ONE,
-                new GregorianCalendar(2014, Calendar.JANUARY, 13));
+                "", "description2", null, BigDecimal.TEN,
+                new GregorianCalendar(2014, Calendar.JANUARY, 3));
         try{
             doUpdateTransactionRecord(trToUpdate);
             fail("empty name");
@@ -404,9 +454,36 @@ public abstract class TransactionRecordServiceAbstractTest
             TransactionRecord trClone = getTransactionRecord(tr.getId(), 1L,
                 "name", "description", null, BigDecimal.ONE,
                 new GregorianCalendar(2014, Calendar.JANUARY, 13));
-            deepListTransactionsEquals(Arrays.asList(trClone), getAllObjects());
+            deepCollectionsTransactionsEquals(Arrays.asList(trClone), getAllObjects());
             throw ex;
         }
+    }
+    
+    @Test(expected = IllegalArgumentException.class)
+    public void updateIllegalNameStar() throws TransactionRecordServiceException{
+        TransactionRecord tr = getTransactionRecord(1L, 1L,
+                "name*", "description", null, BigDecimal.ONE,
+                new GregorianCalendar(2014, Calendar.JANUARY, 13));
+        doUpdateTransactionRecord(tr);
+        fail("illegal name: *");
+    }
+    
+    @Test(expected = IllegalArgumentException.class)
+    public void updateIllegalNameQuestionMark() throws TransactionRecordServiceException{
+        TransactionRecord tr = getTransactionRecord(1L, 1L,
+                "na?me", "description", null, BigDecimal.ONE,
+                new GregorianCalendar(2014, Calendar.JANUARY, 13));
+        doUpdateTransactionRecord(tr);
+        fail("illegal name: ?");
+    }
+    
+    @Test(expected = IllegalArgumentException.class)
+    public void updateIllegalNamePercent() throws TransactionRecordServiceException{
+        TransactionRecord tr = getTransactionRecord(1L, 1L,
+                "nam%e", "description", null, BigDecimal.ONE,
+                new GregorianCalendar(2014, Calendar.JANUARY, 13));
+        doUpdateTransactionRecord(tr);
+        fail("illegal name: %");
     }
     
     @Test(expected = TransactionRecordServiceException.class)
@@ -425,7 +502,7 @@ public abstract class TransactionRecordServiceAbstractTest
             TransactionRecord trClone = getTransactionRecord(tr.getId(), 1L,
                 "name", "description", null, BigDecimal.ONE,
                 new GregorianCalendar(2014, Calendar.JANUARY, 13));
-            deepListTransactionsEquals(getAllObjects(), Arrays.asList(trClone));
+            deepCollectionsTransactionsEquals(getAllObjects(), Arrays.asList(trClone));
             throw ex;
         }
     }
@@ -446,7 +523,7 @@ public abstract class TransactionRecordServiceAbstractTest
             TransactionRecord trClone = getTransactionRecord(tr.getId(), 1L,
                 "name", "description", null, BigDecimal.ONE,
                 new GregorianCalendar(2014, Calendar.JANUARY, 13));
-            deepListTransactionsEquals(getAllObjects(), Arrays.asList(trClone));
+            deepCollectionsTransactionsEquals(getAllObjects(), Arrays.asList(trClone));
             throw ex;
         }
     }
@@ -466,7 +543,7 @@ public abstract class TransactionRecordServiceAbstractTest
         TransactionRecord trToUpdateClone = getTransactionRecord(tr.getId(), 1L,
                 "nameafter", "description", null, BigDecimal.ONE,
                 new GregorianCalendar(2014, Calendar.JANUARY, 13));
-        deepListTransactionsEquals(Arrays.asList(trToUpdateClone), getAllObjects());
+        deepCollectionsTransactionsEquals(Arrays.asList(trToUpdateClone), getAllObjects());
     }
     
     @Test
@@ -476,15 +553,15 @@ public abstract class TransactionRecordServiceAbstractTest
                 new GregorianCalendar(2014, Calendar.JANUARY, 13));
         saveObject(tr);
         TransactionRecord trToUpdate = getTransactionRecord(tr.getId(), 1L,
-                "name", "description after update", null, BigDecimal.ONE,
+                "name", "description after update?&*", null, BigDecimal.ONE,
                 new GregorianCalendar(2014, Calendar.JANUARY, 13));
         
         doUpdateTransactionRecord(trToUpdate);
         
         TransactionRecord trToUpdateClone = getTransactionRecord(tr.getId(), 1L,
-                "name", "description after update", null, BigDecimal.ONE,
+                "name", "description after update?&*", null, BigDecimal.ONE,
                 new GregorianCalendar(2014, Calendar.JANUARY, 13));
-        deepListTransactionsEquals(Arrays.asList(trToUpdateClone), getAllObjects());
+        deepCollectionsTransactionsEquals(Arrays.asList(trToUpdateClone), getAllObjects());
     }
     
     @Test
@@ -502,7 +579,7 @@ public abstract class TransactionRecordServiceAbstractTest
         TransactionRecord trToUpdateClone = getTransactionRecord(tr.getId(), 1L,
                 "name", "", null, BigDecimal.ONE,
                 new GregorianCalendar(2014, Calendar.JANUARY, 13));
-        deepListTransactionsEquals(Arrays.asList(trToUpdateClone), getAllObjects());
+        deepCollectionsTransactionsEquals(Arrays.asList(trToUpdateClone), getAllObjects());
     }
     
     @Test
@@ -520,7 +597,7 @@ public abstract class TransactionRecordServiceAbstractTest
         TransactionRecord trToUpdateClone = getTransactionRecord(tr.getId(), 1L,
                 "name", null, null, BigDecimal.ONE,
                 new GregorianCalendar(2014, Calendar.JANUARY, 13));
-        deepListTransactionsEquals(Arrays.asList(trToUpdateClone), getAllObjects());
+        deepCollectionsTransactionsEquals(Arrays.asList(trToUpdateClone), getAllObjects());
     }
     
     @Test(expected = IllegalArgumentException.class)
@@ -539,7 +616,7 @@ public abstract class TransactionRecordServiceAbstractTest
             TransactionRecord trClone = getTransactionRecord(tr.getId(), 1L,
                 "name", "description", null, BigDecimal.ONE,
                 new GregorianCalendar(2014, Calendar.JANUARY, 13));
-            deepListTransactionsEquals(Arrays.asList(trClone), getAllObjects());
+            deepCollectionsTransactionsEquals(Arrays.asList(trClone), getAllObjects());
             throw ex;
         }
     }
@@ -560,7 +637,7 @@ public abstract class TransactionRecordServiceAbstractTest
             TransactionRecord trClone = getTransactionRecord(tr.getId(), 1L,
                 "name", "description", null, BigDecimal.ONE,
                 new GregorianCalendar(2014, Calendar.JANUARY, 13));
-            deepListTransactionsEquals(Arrays.asList(trClone), getAllObjects());
+            deepCollectionsTransactionsEquals(Arrays.asList(trClone), getAllObjects());
             throw ex;
         }
     }
@@ -580,7 +657,7 @@ public abstract class TransactionRecordServiceAbstractTest
         TransactionRecord trToUpdateClone = getTransactionRecord(tr.getId(), 1L,
                 "name", "description", null, BigDecimal.TEN.negate(),
                 new GregorianCalendar(2014, Calendar.JANUARY, 13));
-        deepListTransactionsEquals(Arrays.asList(trToUpdateClone), getAllObjects());
+        deepCollectionsTransactionsEquals(Arrays.asList(trToUpdateClone), getAllObjects());
     }
     
     @Test(expected = IllegalArgumentException.class)
@@ -598,7 +675,7 @@ public abstract class TransactionRecordServiceAbstractTest
             TransactionRecord trClone = getTransactionRecord(tr.getId(), 1L,
                 "name", "description", null, BigDecimal.ONE,
                 new GregorianCalendar(2014, Calendar.JANUARY, 13));
-            deepListTransactionsEquals(Arrays.asList(trClone), getAllObjects());
+            deepCollectionsTransactionsEquals(Arrays.asList(trClone), getAllObjects());
             throw ex;
         }
     }
@@ -618,49 +695,39 @@ public abstract class TransactionRecordServiceAbstractTest
         TransactionRecord trToUpdateClone = getTransactionRecord(tr.getId(), 1L,
                 "name", "description", null, BigDecimal.ONE,
                 new GregorianCalendar(2015, Calendar.JULY, 14));
-        deepListTransactionsEquals(Arrays.asList(trToUpdateClone), getAllObjects());
+        deepCollectionsTransactionsEquals(Arrays.asList(trToUpdateClone), getAllObjects());
     }
     
-    @Test(expected = TransactionRecordServiceException.class)
+    @Test
     public void updateAssociatedTransactionsIDChangedToNumber() throws TransactionRecordServiceException{
         TransactionRecord tr = getTransactionRecord(null, 1L,
                 "name", "description", null, BigDecimal.ONE,
                 new GregorianCalendar(2014, Calendar.JANUARY, 13));
         saveObject(tr);
         TransactionRecord trToUpdate = getTransactionRecord(tr.getId(), 1L,
-                "name2", "description2", 1L, BigDecimal.TEN,
-                new GregorianCalendar(2014, Calendar.JANUARY, 1));
-        try{
-            doUpdateTransactionRecord(trToUpdate);
-            fail("associated transaction's ID has been changed");
-        } catch (TransactionRecordServiceException ex){
-            TransactionRecord trClone = getTransactionRecord(tr.getId(), 1L,
-                "name", "description", null, BigDecimal.ONE,
+                "name", "description", 1L, BigDecimal.ONE,
                 new GregorianCalendar(2014, Calendar.JANUARY, 13));
-            deepListTransactionsEquals(getAllObjects(), Arrays.asList(trClone));
-            throw ex;
-        }
+        doUpdateTransactionRecord(trToUpdate);
+        TransactionRecord trToUpdateClone = getTransactionRecord(tr.getId(), 1L,
+            "name", "description", 1L, BigDecimal.ONE,
+            new GregorianCalendar(2014, Calendar.JANUARY, 13));
+        deepCollectionsTransactionsEquals(getAllObjects(), Arrays.asList(trToUpdateClone));
     }
     
-    @Test(expected = TransactionRecordServiceException.class)
+    @Test
     public void updateAssociatedTransactionsIDChangedToNull() throws TransactionRecordServiceException{
         TransactionRecord tr = getTransactionRecord(null, 1L,
                 "name", "description", 1L, BigDecimal.ONE,
                 new GregorianCalendar(2014, Calendar.JANUARY, 13));
         saveObject(tr);
         TransactionRecord trToUpdate = getTransactionRecord(tr.getId(), 1L,
-                "name2", "description2", null, BigDecimal.TEN,
-                new GregorianCalendar(2014, Calendar.JANUARY, 3));
-        try{
-            doUpdateTransactionRecord(trToUpdate);
-            fail("associated transaction's ID has been changed");
-        } catch (TransactionRecordServiceException ex){
-            TransactionRecord trClone = getTransactionRecord(tr.getId(), 1L,
                 "name", "description", null, BigDecimal.ONE,
                 new GregorianCalendar(2014, Calendar.JANUARY, 13));
-            deepListTransactionsEquals(getAllObjects(), Arrays.asList(trClone));
-            throw ex;
-        }
+        doUpdateTransactionRecord(trToUpdate);
+        TransactionRecord trToUpdateClone = getTransactionRecord(tr.getId(), 1L,
+            "name", "description", null, BigDecimal.ONE,
+            new GregorianCalendar(2014, Calendar.JANUARY, 13));
+        deepCollectionsTransactionsEquals(getAllObjects(), Arrays.asList(trToUpdateClone));
     }
     
     /////////// get ////////////

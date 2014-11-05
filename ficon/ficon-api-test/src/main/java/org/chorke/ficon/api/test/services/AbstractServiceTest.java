@@ -125,9 +125,21 @@ public abstract class AbstractServiceTest<S, O> {
      */
     protected abstract void deleteObject(O obj);
     
+    /**
+     * Updates object which is managed by testing service.
+     * Object is updated in another way then standard update method of service
+     * (e.g. directly in RDBMS, caching, Mock object,...) so result does not depend
+     * on service.
+     * 
+     * @param obj Object to be updated.
+     */
+    protected abstract void updateObject(O obj);
+    
     protected User getUser(Long id, String name, Set<Account> accounts){
         User us = new User();
-        us.setId(id);
+        if(id != null){
+            us.setId(id);
+        }
         us.setName(name);
         if(accounts != null){
             for(Account ac : accounts){
@@ -140,7 +152,9 @@ public abstract class AbstractServiceTest<S, O> {
     protected Account getAccount(Long id, Long userID, String name,
             String description, List<TransactionRecord> records){
         Account ac = new Account(userID);
-        ac.setId(id);
+        if(id != null){
+            ac.setId(id);
+        }
         ac.setName(name);
         ac.setDescription(description);
         if(records != null){
@@ -155,7 +169,9 @@ public abstract class AbstractServiceTest<S, O> {
             String name, String description, Long associatedTransID,
             BigDecimal amount, Calendar transactionTime){
         TransactionRecord tr = new TransactionRecord(accountID);
-        tr.setId(id);
+        if(id != null){
+            tr.setId(id);
+        }
         tr.setName(name);
         tr.setDescription(description);
         tr.setAssociatedTransactionID(associatedTransID);
@@ -164,16 +180,18 @@ public abstract class AbstractServiceTest<S, O> {
         return tr;
     }
     
-    protected void deepEquals(User u1, User u2){
+    protected void deepEquals(User u1, User u2, boolean checkAccounts, boolean checkTransactions){
         if(checkNullObjects(u1, u2)){
             return;
         }
-        deepListAccountsEquals(u1.getAccounts(), u2.getAccounts());
         assertEquals(u1.getId(), u2.getId());
         assertEquals(u1.getName(), u2.getName());
+        if(checkAccounts){
+            deepCollectionsAccountsEquals(u1.getAccounts(), u2.getAccounts(), checkTransactions);
+        }
     }
     
-    protected void deepEquals(Account ac1, Account ac2){
+    protected void deepEquals(Account ac1, Account ac2, boolean checkTransactions){
         if(checkNullObjects(ac1, ac2)){
             return;
         }
@@ -181,7 +199,9 @@ public abstract class AbstractServiceTest<S, O> {
         assertEquals(ac1.getId(), ac2.getId());
         assertEquals(ac1.getName(), ac2.getName());
         assertEquals(ac1.getUsersID(), ac2.getUsersID());
-        deepListTransactionsEquals(ac1.getTransactions(), ac2.getTransactions());
+        if(checkTransactions){
+            deepCollectionsTransactionsEquals(ac1.getTransactions(), ac2.getTransactions());
+        }
     }
     
     protected void deepEquals(TransactionRecord tr1, TransactionRecord tr2){
@@ -189,12 +209,30 @@ public abstract class AbstractServiceTest<S, O> {
             return;
         }
         assertEquals(tr1.getAccountID(), tr2.getAccountID());
-        assertEquals(tr1.getAmount(), tr2.getAmount());
+        deepEquals(tr1.getAmount(), tr2.getAmount());
         assertEquals(tr1.getAssociatedTransactionID(), tr2.getAssociatedTransactionID());
         assertEquals(tr1.getDescription(), tr2.getDescription());
         assertEquals(tr1.getId(), tr2.getId());
         assertEquals(tr1.getName(), tr2.getName());
-        assertEquals(tr1.getTransactionTime(), tr2.getTransactionTime());
+        deepEquals(tr1.getTransactionTime(), tr2.getTransactionTime());
+    }
+    
+    protected void deepEquals(BigDecimal bd1, BigDecimal bd2){
+        if(checkNullObjects(bd1, bd2)){
+            return;
+        }
+        if(bd1.compareTo(bd2) != 0){
+            fail("Values are not equals: " + bd1 + " <--> " + bd2);
+        }
+    }
+    
+    protected void deepEquals(Calendar c1, Calendar c2){
+        if(checkNullObjects(c1, c2)){
+            return;
+        }
+        if(c1.compareTo(c2) != 0){
+            fail("Values are not equals: " + c1 + " <--> " + c2);
+        }
     }
     
     /**
@@ -203,14 +241,15 @@ public abstract class AbstractServiceTest<S, O> {
      * @param l1
      * @param l2 
      */
-    protected void deepListAccountsEquals(Collection<Account> l1, Collection<Account> l2){
+    protected void deepCollectionsAccountsEquals(Collection<Account> l1, Collection<Account> l2,
+            boolean checkTransactions){
         if(checkNullAndSize(l1, l2)){
             return;
         }
         for(Account ac : l1){
             for(Account inl2 : l2){
                 if(inl2.getId() == ac.getId()){
-                    deepEquals(inl2, ac);
+                    deepEquals(inl2, ac, checkTransactions);
                     break;
                 }
             }
@@ -223,7 +262,7 @@ public abstract class AbstractServiceTest<S, O> {
      * @param l1
      * @param l2 
      */
-    protected void deepListTransactionsEquals(Collection<TransactionRecord> l1,
+    protected void deepCollectionsTransactionsEquals(Collection<TransactionRecord> l1,
             Collection<TransactionRecord> l2){
         if(checkNullAndSize(l1, l2)){
             return;
@@ -244,14 +283,15 @@ public abstract class AbstractServiceTest<S, O> {
      * @param l1
      * @param l2 
      */
-    protected void deepListUserEquals(Collection<User> l1, Collection<User> l2){
+    protected void deepCollectionsUserEquals(Collection<User> l1, Collection<User> l2,
+            boolean checkAccounts, boolean checkTransactions){
         if(checkNullAndSize(l1, l2)){
             return;
         }
         for(User us : l1){
             for(User inl2 : l2){
                 if(inl2.getId() == us.getId()){
-                    deepEquals(inl2, us);
+                    deepEquals(inl2, us, checkAccounts, checkTransactions);
                     break;
                 }
             }

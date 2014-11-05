@@ -12,9 +12,6 @@
     <version>0.1</version>
     <name>ficon-api-test</name>
     <url>http://maven.apache.org</url>
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
     <dependencies>
         <dependency>
             <groupId>junit</groupId>
@@ -24,7 +21,7 @@
         <dependency>
             <groupId>org.chorke</groupId>
             <artifactId>ficon-api</artifactId>
-            <version>0.1</version>
+            <version>${project.version}</version>
         </dependency>
     </dependencies>
     <build>

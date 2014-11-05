@@ -3,6 +3,7 @@ package org.chorke.ficon.api.objects;
 
 import java.math.BigDecimal;
 import java.util.Calendar;
+import java.util.Locale;
 
 /**
  * Transaction record.
@@ -177,5 +178,39 @@ public class TransactionRecord {
      */
     public Calendar getTransactionTime() {
         return transactionTime;
+    }
+
+    @Override
+    public String toString() {
+        return new StringBuilder("Transaction record: ").append(name)
+                .append(" [id: ").append(id)
+                .append(", belongs to account: ").append(accountID)
+                .append("] {description: ").append(description)
+                .append("}, amount: ").append(amount)
+                .append(", associated transaction: ").append(associatedTransactionID)
+                .append(", transaction time: [day: ")
+                    .append(transactionTime.getDisplayName(Calendar.DAY_OF_MONTH,
+                            Calendar.LONG, Locale.getDefault()))
+                    .append(", month: ")
+                    .append(transactionTime.getDisplayName(Calendar.MONTH,
+                            Calendar.LONG, Locale.getDefault()))
+                    .append(", year: ")
+                    .append(transactionTime.getDisplayName(Calendar.YEAR,
+                            Calendar.LONG, Locale.getDefault()))
+                    .append("]").toString();
+    }
+
+    @Override
+    public int hashCode() {
+        return id == null ? TransactionRecord.class.getName().hashCode() : id.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if(obj instanceof TransactionRecord){
+            Long objId = ((TransactionRecord)obj).getId();
+            return id == null ? objId == null : id.equals(objId);
+        }
+        return false;
     }
 }

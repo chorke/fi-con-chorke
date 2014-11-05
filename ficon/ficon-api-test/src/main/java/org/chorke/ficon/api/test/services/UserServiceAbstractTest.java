@@ -303,6 +303,14 @@ public abstract class UserServiceAbstractTest extends AbstractServiceTest<UserSe
     protected abstract void deleteTransaction(TransactionRecord tr);
     
     /**
+     * Updates transaction stroed in DB. Transaction is
+     * updated independently of any service.
+     * 
+     * @param tr 
+     */
+    protected abstract void updateTransaction(TransactionRecord tr);
+    
+    /**
      * Removes account stored in DB. Account is
      * removed independently of any service.
      * 
@@ -343,6 +351,27 @@ public abstract class UserServiceAbstractTest extends AbstractServiceTest<UserSe
     }
     
     @Test(expected = IllegalArgumentException.class)
+    public void createIllegalNameStar() throws UserServiceException {
+        User us = getUser(null, "*", null);
+        doCreateNewUser(us);
+        fail("illegal name: *");
+    }
+    
+    @Test(expected = IllegalArgumentException.class)
+    public void createIllegalNameQuestionMark() throws UserServiceException {
+        User us = getUser(null, "aa?", null);
+        doCreateNewUser(us);
+        fail("illegal name: ?");
+    }
+    
+    @Test(expected = IllegalArgumentException.class)
+    public void createIllegalNamePercent() throws UserServiceException {
+        User us = getUser(null, "name%", null);
+        doCreateNewUser(us);
+        fail("illegal name: %");
+    }
+    
+    @Test(expected = IllegalArgumentException.class)
     public void createAccountsPresent() throws UserServiceException {
         User us = getUser(null, "user",
                 new HashSet<>(
@@ -365,7 +394,7 @@ public abstract class UserServiceAbstractTest extends AbstractServiceTest<UserSe
         }
         User usCopy = getUser(us.getId(), "user", null);
         User inDB = getObject(us.getId());
-        deepEquals(inDB, usCopy);
+        deepEquals(inDB, usCopy, false, false);
     }
     
     //////////// update ////////////
@@ -396,6 +425,27 @@ public abstract class UserServiceAbstractTest extends AbstractServiceTest<UserSe
         fail("empty name");
     }
     
+    @Test(expected = IllegalArgumentException.class)
+    public void updateIllegalNameStar() throws UserServiceException{
+        User us = getUser(1L, "n*", null);
+        doUpdateUser(us);
+        fail("illegal name: *");
+    }
+    
+    @Test(expected = IllegalArgumentException.class)
+    public void updateIllegalNameQuestionMark() throws UserServiceException{
+        User us = getUser(1L, "n?", null);
+        doUpdateUser(us);
+        fail("illegal name: ?");
+    }
+    
+    @Test(expected = IllegalArgumentException.class)
+    public void updateIllegalNamePercent() throws UserServiceException{
+        User us = getUser(1L, "n%", null);
+        doUpdateUser(us);
+        fail("illegal name: %");
+    }
+    
     @Test(expected = UserServiceException.class)
     public void updateOkArgumentUserNotInDB() throws UserServiceException{
         User us = getUser(null, "user1", null);
@@ -406,7 +456,7 @@ public abstract class UserServiceAbstractTest extends AbstractServiceTest<UserSe
             fail("user not is DB");
         } catch (UserServiceException ex){
             User usClone = getUser(us.getId(), "user1", null);
-            deepListUserEquals(getAllObjects(), Arrays.asList(usClone));
+            deepCollectionsUserEquals(getAllObjects(), Arrays.asList(usClone), false, false);
             throw ex;
         }
     }
@@ -419,7 +469,7 @@ public abstract class UserServiceAbstractTest extends AbstractServiceTest<UserSe
         doUpdateUser(usToUpdate);
         User usToUpdateCopy = getUser(us.getId(), "name", null);
         User fromDB = getObject(us.getId());
-        deepEquals(usToUpdateCopy, fromDB);
+        deepEquals(usToUpdateCopy, fromDB, false, false);
     }
     
     //////////// delete ////////////
@@ -443,7 +493,7 @@ public abstract class UserServiceAbstractTest extends AbstractServiceTest<UserSe
         saveObject(us);
         User usToDelete = getUser(us.getId() + 1, "user2", null);
         doDeleteUser(usToDelete);
-        deepListUserEquals(getAllObjects(), Arrays.asList(us));
+        deepCollectionsUserEquals(getAllObjects(), Arrays.asList(us), false, false);
     }
     
     @Test
@@ -459,7 +509,7 @@ public abstract class UserServiceAbstractTest extends AbstractServiceTest<UserSe
         if(getObject(us.getId()) != null){
             fail("user has not been deleted");
         }
-        deepListUserEquals(getAllObjects(), Arrays.asList(us1, us2));
+        deepCollectionsUserEquals(getAllObjects(), Arrays.asList(us1, us2), false, false);
     }
     
     @Test
@@ -541,6 +591,18 @@ public abstract class UserServiceAbstractTest extends AbstractServiceTest<UserSe
                 us1_ac2_tr1, us1_ac2_tr2,
                 us2_ac1_tr1, us2_ac1_tr2,
                 us2_ac2_tr1, us2_ac2_tr2));
+        
+        us2_ac1_tr1.setAssociatedTransactionID(us_ac1_tr2.getId());
+        us_ac1_tr2.setAssociatedTransactionID(us2_ac1_tr1.getId());
+        
+        us2_ac2_tr2.setAssociatedTransactionID(us1_ac1_tr1.getId());
+        us1_ac1_tr1.setAssociatedTransactionID(us2_ac2_tr2.getId());
+        
+        updateTransaction(us2_ac1_tr1);
+        updateTransaction(us_ac1_tr2);
+        updateTransaction(us2_ac2_tr2);
+        updateTransaction(us1_ac1_tr1);
+        
         us_ac1.addTransaction(us_ac1_tr1);
         us_ac1.addTransaction(us_ac1_tr2);
         us_ac2.addTransaction(us_ac2_tr1);
@@ -561,12 +623,15 @@ public abstract class UserServiceAbstractTest extends AbstractServiceTest<UserSe
         if(getObject(us.getId()) != null){
             fail("user has not been deleted");
         }
-        deepListUserEquals(getAllObjects(), Arrays.asList(us1, us2));
         
-        deepListAccountsEquals(getAllStoredAccounts(),
-                Arrays.asList(us1_ac1, us1_ac2, us2_ac1, us2_ac2));
+        deepCollectionsUserEquals(getAllObjects(), Arrays.asList(us1, us2), false, false);
         
-        deepListTransactionsEquals(getAllStoredTransactions(),
+        deepCollectionsAccountsEquals(getAllStoredAccounts(),
+                Arrays.asList(us1_ac1, us1_ac2, us2_ac1, us2_ac2), false);
+        
+        us2_ac1_tr1.setAssociatedTransactionID(null);
+        
+        deepCollectionsTransactionsEquals(getAllStoredTransactions(),
                 Arrays.asList(
                     us1_ac1_tr1, us1_ac1_tr2,
                     us1_ac2_tr1, us1_ac2_tr2,
@@ -601,7 +666,7 @@ public abstract class UserServiceAbstractTest extends AbstractServiceTest<UserSe
         saveObject(us);
         User usCopy = getUser(us.getId(), "name", null);
         User fromDB = doGetUser(us.getId());
-        deepEquals(usCopy, fromDB);
+        deepEquals(usCopy, fromDB, false, false);
     }
     
     //////////// load accounts ////////////
@@ -744,6 +809,6 @@ public abstract class UserServiceAbstractTest extends AbstractServiceTest<UserSe
         User copyToLoad = getUser(toLoad.getId(), toLoad.getName() == null ? "diff" : null, null);
         User expectedUser = getUser(toLoad.getId(), copyToLoad.getName(), expectedWithoutTransactions);
         User fromDB = doLoadUsersAccounts(copyToLoad);
-        deepEquals(fromDB, expectedUser);
+        deepEquals(fromDB, expectedUser, true, false);
     }
 }
