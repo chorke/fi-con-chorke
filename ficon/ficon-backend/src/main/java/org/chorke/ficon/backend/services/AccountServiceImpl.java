@@ -14,11 +14,14 @@ import org.chorke.ficon.api.exceptions.AccountServiceException;
 import org.chorke.ficon.api.objects.Account;
 import org.chorke.ficon.api.objects.TransactionRecord;
 import org.chorke.ficon.api.services.AccountService;
+import org.chorke.ficon.api.utils.ExchangeRateTable;
 import org.chorke.ficon.backend.sql.SQLBuilderAccountsService;
 import org.chorke.ficon.backend.sql.SQLBuilderAccountsService.StatementTypeAccounts;
 import org.chorke.ficon.backend.sql.SQLBuilderTransactionRecordsService;
 import org.chorke.ficon.backend.sql.SQLBuilderTransactionRecordsService.StatementTypeTransactionRecrod;
 import org.chorke.ficon.backend.sql.metadata.AccountsMetaData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -26,11 +29,16 @@ import org.chorke.ficon.backend.sql.metadata.AccountsMetaData;
  */
 public class AccountServiceImpl extends BasicService implements AccountService{
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(AccountServiceImpl.class);
+    
     public AccountServiceImpl(DataSource dataSource) {
         super(dataSource);
     }
     @Override
     public void createNewAccount(Account account) throws AccountServiceException {
+        if(LOGGER.isDebugEnabled()){
+            LOGGER.debug("Trying to create an account: {}.", account);
+        }
         checkAccount(account, true);
         Connection con = null;
         SQLBuilderAccountsService builder = null;
@@ -41,17 +49,20 @@ public class AccountServiceImpl extends BasicService implements AccountService{
             builder.setDescription(account.getDescription());
             builder.setName(account.getName());
             builder.setUserID(account.getUsersID());
+            builder.setCurrency(account.getCurrency());
             Long id = executeInsertAndGetID(builder);
             con.commit();
             endExpected = true;
             account.setId(id);
         } catch (SQLException ex){
             endExpected = true;
-            rollback(con, "Error rollbackAccountwhile creating new account.", AccountServiceException.class);
+            LOGGER.error("Error while create account - rollback.", ex);
+            rollback(con, "Error while creating new account.", AccountServiceException.class);
             throw new AccountServiceException("Error while creating new account: " 
-                    + account, ex);
+                    + ex.getMessage(), ex);
         } finally {
             if(!endExpected){
+                LOGGER.error("Uncommitted transaction [new account] - rollback.");
                 rollback(con, "Transaction has not been commited.", AccountServiceException.class);
             }
             saveClose(builder, con);
@@ -60,6 +71,9 @@ public class AccountServiceImpl extends BasicService implements AccountService{
 
     @Override
     public void deleteAccount(Account account) throws AccountServiceException {
+        if(LOGGER.isDebugEnabled()){
+            LOGGER.debug("Trying to delete an account: {}.", account);
+        }
         checkAccountOnNullAndId(account, false);
         Connection con = null;
         SQLBuilderAccountsService builderDeleteAccounts = null;
@@ -82,11 +96,13 @@ public class AccountServiceImpl extends BasicService implements AccountService{
             endExpected = true;
         } catch (SQLException ex){
             endExpected = true;
+            LOGGER.error("Error while deleting account - rollback.", ex);
             rollback(con, "Error while deleting account.", AccountServiceException.class);
             throw new AccountServiceException("Error while deleting account: " 
-                    + account, ex);
+                    + ex.getMessage(), ex);
         } finally {
             if(!endExpected){
+                LOGGER.error("Uncommitted transaction [delete account] - rollback.");
                 rollback(con, "Transaction has not been commited.", AccountServiceException.class);
             }
             saveClose(builderUpdateRecords, builderDeleteRecords, builderDeleteAccounts, con);
@@ -95,6 +111,9 @@ public class AccountServiceImpl extends BasicService implements AccountService{
 
     @Override
     public void updateAccount(Account account) throws AccountServiceException {
+        if(LOGGER.isDebugEnabled()){
+            LOGGER.debug("Trying to update an account: {}.", account);
+        }
         checkAccount(account, false);
         Connection con = null;
         SQLBuilderAccountsService builder = null;
@@ -103,10 +122,17 @@ public class AccountServiceImpl extends BasicService implements AccountService{
             con = getConnection(false);
             Account fromDB = getBasicAccount(account.getId());
             if(fromDB == null){
+                LOGGER.error("Account that should be updated is not in DB {}.", account);
                 throw new AccountServiceException("Account is not in DB.");
             }
             if(areDifferent(account.getUsersID(), fromDB.getUsersID(), true)){
+                LOGGER.error("Account's userID has been changed: actual: {} - in DB: {}.", account, fromDB);
                 throw new AccountServiceException("Account's userID has been changed.");
+            }
+            if(areDifferent(account.getCurrency().getCurrencyCode(),
+                    fromDB.getCurrency().getCurrencyCode(), false)){
+                LOGGER.error("Account's currency has been changed: actual: {} - in DB: {}.", account, fromDB);
+                throw new AccountServiceException("Account's currency has been changed.");
             }
             builder = new SQLBuilderAccountsService(con, StatementTypeAccounts.TYPE_UPDATE);
             if(areDifferent(account.getDescription(), fromDB.getDescription(), false)){
@@ -125,17 +151,20 @@ public class AccountServiceImpl extends BasicService implements AccountService{
             }
             int updCount = ps.executeUpdate();
             if(updCount != 1){
+                LOGGER.error("Expected update count was 1; {}.", updCount);
                 throw new AccountServiceException("Expected update count is 1, but was " + updCount);
             }
             con.commit();
             endExpected = true;
         } catch (SQLException ex){
             endExpected = true;
+            LOGGER.error("Error while updating account - rollback.", ex);
             rollback(con, "Error while updating account.", AccountServiceException.class);
             throw new AccountServiceException("Error while updating account: "
-                    + account, ex);
+                    + ex.getMessage(), ex);
         } finally {
             if(!endExpected){
+                LOGGER.error("Uncommitted transaction [update account] - rollback.");
                 rollback(con, "Transaction has not been committed.", AccountServiceException.class);
             }
             saveClose(builder, con);
@@ -144,6 +173,9 @@ public class AccountServiceImpl extends BasicService implements AccountService{
 
     @Override
     public Account getBasicAccount(Long id) throws AccountServiceException {
+        if(LOGGER.isDebugEnabled()){
+            LOGGER.debug("Trying to get basic account: {}.", id);
+        }
         checkAccountID(id, false);
         try(Connection con = getConnection(true);
                 SQLBuilderAccountsService builder = 
@@ -152,16 +184,22 @@ public class AccountServiceImpl extends BasicService implements AccountService{
             ResultSet rs = builder.build().executeQuery();
             Account ac = getAccountFromResultSet(rs);
             if(rs.next()){
+                LOGGER.error("Multiple ID in one table [accounts table].");
                 throw new AccountServiceException("Multiple key in DB.");
             }
             return ac;
         } catch (SQLException ex){
-            throw new AccountServiceException("Error while getting account with id: " + id, ex);
+            LOGGER.error("Error while getting basic account.", ex);
+            throw new AccountServiceException("Error while getting account: "
+                    + ex.getMessage(), ex);
         }
     }
 
     @Override
     public Account getFullAccount(Long id) throws AccountServiceException {
+        if(LOGGER.isDebugEnabled()){
+            LOGGER.debug("Trying to get full account: {}.", id);
+        }
         Account ac = getBasicAccount(id);
         if(ac == null){
             return null;
@@ -171,13 +209,20 @@ public class AccountServiceImpl extends BasicService implements AccountService{
 
     @Override
     public Account loadTransactionHistory(Account account) throws AccountServiceException {
+        if(LOGGER.isDebugEnabled()){
+            LOGGER.debug("Trying to load a histgory of account: {}.", account);
+        }
         return loadTransactionHistory(account, null);
     }
 
     @Override
     public Account loadTransactionHistory(Account account, Properties props) throws AccountServiceException {
+        if(LOGGER.isDebugEnabled()){
+            LOGGER.debug("Trying to load a history of account: [{}], [{}].", account, props);
+        }
         checkAccountOnNullAndId(account, false);
         if(!account.getTransactions().isEmpty()){
+            LOGGER.error("Account's history is not empty.");
             throw new IllegalArgumentException("Account's history already loaded.");
         }
         try(Connection con = getConnection(true);
@@ -192,22 +237,32 @@ public class AccountServiceImpl extends BasicService implements AccountService{
             }
             return account;
         } catch (SQLException ex){
-            throw new AccountServiceException("Error while loading transaction history.", ex);
+            LOGGER.error("Error while loading transaction history.", ex);
+            throw new AccountServiceException("Error while loading transaction history: "
+                    + ex.getMessage(), ex);
         }
     }
 
     @Override
-    public void transferMoney(Account from, Account to, TransactionRecord template) throws AccountServiceException {
+    public void transferMoney(Account from, Account to, TransactionRecord template,
+            ExchangeRateTable table) throws AccountServiceException {
+        if(LOGGER.isDebugEnabled()){
+            LOGGER.debug("Trying to transfer money: [from: {}], [to: {}],"
+                    + " [template: {}], [exchange table: {}].", from, to, template, table);
+        }
         checkAccountOnNullAndId(from, false);
         checkAccountOnNullAndId(to, false);
         checkOnNull(template, "Template cannot be null.");
         checkString(template.getName(), true, true, true, "Name cannot be null.");
         checkOnNull(template.getAmount(), "Amount cannot be null.");
+        checkOnNull(table, "Exchange rate table cannot be null.");
         if(!areDifferent(template.getAmount(), BigDecimal.ZERO, true)){
+            LOGGER.warn("Nothing to transfer - zero amount.");
             throw new IllegalArgumentException("Nothing to transfer. Ammount is zero.");
         }
         checkOnNull(template.getTransactionTime(), "Transaction time cannot be null.");
         if(!areDifferent(to.getId(), from.getId(), true)){
+            LOGGER.warn("Noting to transfer - from = to.");
             throw new IllegalArgumentException("Nothing to transfer. From and to account have same ID.");
         }
         
@@ -237,7 +292,8 @@ public class AccountServiceImpl extends BasicService implements AccountService{
             builderFromInsert.setAssociatedTransactionID(null);
             
             builderToInsert.setAccountID(to.getId());
-            builderToInsert.setAmount(template.getAmount());
+            builderToInsert.setAmount(
+                    table.exchange(from.getCurrency(), to.getCurrency(), template.getAmount()));
             builderToInsert.setDesctiption(template.getDescription());
             builderToInsert.setName(template.getName());
             builderToInsert.setTransactionTime(template.getTransactionTime());
@@ -264,6 +320,7 @@ public class AccountServiceImpl extends BasicService implements AccountService{
             TransactionRecord fromRec = getRecordFromResultSet(builderFromSelect.build().executeQuery());
             TransactionRecord toRec = getRecordFromResultSet(builderToSelect.build().executeQuery());
             if(fromRec == null || toRec == null){
+                LOGGER.error("Some record has not been saved during money transfer.");
                 throw new AccountServiceException("Some record has not been inserted.");
             }
             con.commit();
@@ -272,12 +329,15 @@ public class AccountServiceImpl extends BasicService implements AccountService{
             to.addTransaction(toRec);
         } catch (SQLException ex){
             endExpected = true;
+            LOGGER.error("Error while transfering money - rollback.", ex);
             rollback(con, "Error while transferring money", AccountServiceException.class);
             throw new AccountServiceException("Error while transfering money: "
                     + "from [" + from + "] to [" + to + "] transaction ["
-                    + template + "]", ex);
+                    + template + "]: "
+                    + ex.getMessage(), ex);
         } finally {
             if(!endExpected){
+                LOGGER.error("Uncommitted transaction [transfer money] - rollback.");
                 rollback(con, "Transaction has not been committed.", AccountServiceException.class);
             }
             saveClose(builderFromSelect, builderToSelect, 
@@ -289,6 +349,9 @@ public class AccountServiceImpl extends BasicService implements AccountService{
 
     @Override
     public Map<Long, String> getAccountsNames(Long usersID) throws AccountServiceException {
+        if(LOGGER.isDebugEnabled()){
+            LOGGER.debug("Trying to get names of all accounts: {}.", usersID);
+        }
         checkOnNull(usersID, "User's ID cannot be null.");
         try(Connection con = getConnection(true);
             SQLBuilderAccountsService builder =
@@ -299,17 +362,21 @@ public class AccountServiceImpl extends BasicService implements AccountService{
             while(rs.next()){
                 long id = rs.getLong(AccountsMetaData.COLUMN_ID);
                 if(rs.wasNull()){
+                    LOGGER.error("Account's ID null.");
                     throw new AccountServiceException("Account's ID is null.");
                 }
                 String name = rs.getString(AccountsMetaData.COLUMN_NAME);
                 if(name == null || name.isEmpty()){
+                    LOGGER.error("Illegal account's name.");
                     throw new AccountServiceException("Account's name is illegal: '" + name + "'");
                 }
                 names.put(id, name);
             }
             return names;
         } catch (SQLException ex){
-            throw new AccountServiceException("Error while getting accounts.", ex);
+            LOGGER.error("Error while getting account names.", ex);
+            throw new AccountServiceException("Error while getting accounts: "
+                    + ex.getMessage(), ex);
         }
     }
     

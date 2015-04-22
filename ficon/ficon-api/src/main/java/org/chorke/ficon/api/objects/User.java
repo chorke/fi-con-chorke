@@ -10,7 +10,7 @@ import java.util.Set;
  * 
  * @author Chorke
  */
-public class User {
+public class User implements Cloneable{
     
     /**
      * User's ID.
@@ -128,7 +128,7 @@ public class User {
     public boolean equals(Object obj) {
         if(obj instanceof User){
             Long objId = ((User)obj).getId();
-            return id == null ? objId == null : id.equals(objId);
+            return id == null ? false : id.equals(objId);
         }
         return false;
     }
@@ -136,5 +136,20 @@ public class User {
     @Override
     public String toString() {
         return "User: " + name + " [id " + id + "], numer of accounts: " + accounts.size();
+    }
+    
+    @Override
+    public User clone(){
+        try{
+            User u = (User)super.clone();
+            u.accounts = new HashSet<>();
+            for(Account ac : accounts){
+                u.addAccount(ac.clone());
+            }
+            return u;
+        } catch (CloneNotSupportedException ex){
+            //should not happend
+            throw new InternalError(ex.toString());
+        }
     }
 }

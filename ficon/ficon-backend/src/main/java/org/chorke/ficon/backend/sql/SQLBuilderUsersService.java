@@ -4,20 +4,20 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
-import org.chorke.ficon.backend.sql.metadata.UsersMetaData;
 import org.chorke.ficon.backend.sql.metadata.AccountsMetaData;
 import org.chorke.ficon.backend.sql.metadata.TransactionRecordsMetaData;
+import org.chorke.ficon.backend.sql.metadata.UsersMetaData;
 
 /**
  *
  * @author Chorke
  */
 public class SQLBuilderUsersService extends SQLBuilderBasic{
-    
+
     static interface UsersStatements {
 
         static final String INSTERT_SQL = "INSERT INTO " + UsersMetaData.TABLE_NAME
-                + "(" + UsersMetaData.INSTANCE.getColumnNameAtPositionInInsert(1, true)
+                + " (" + UsersMetaData.INSTANCE.getColumnNameAtPositionInInsert(1, true)
                 + ") VALUES (?)";
         static final String DELETE_SQL = "DELETE FROM " + UsersMetaData.TABLE_NAME
                 + " WHERE " + UsersMetaData.COLUMN_ID + "=?";
@@ -130,7 +130,7 @@ public class SQLBuilderUsersService extends SQLBuilderBasic{
             case (StatementTypeUsers.TYPE_SELECT):
                 return buildSelect();
             case (StatementTypeUsers.TYPE_SELECT_USERS_NAMES):
-                return buildSelectUsersNames();
+                return buildSelectUserNames();
             case (StatementTypeUsers.TYPE_DELETE_ACCOUNT_SUBQUERY):
                 return buildDeleteAccountsSubquery();
             case (StatementTypeUsers.TYPE_DELETE_RECORDS_SUBQUERY):
@@ -150,6 +150,7 @@ public class SQLBuilderUsersService extends SQLBuilderBasic{
         setString(statement,
                 USERS_META_DATA.getInsertColumnMapping(UsersMetaData.COLUMN_NAME, true),
                 name);
+        logStatement("user service insert");
         return statement;
     }
     
@@ -161,6 +162,7 @@ public class SQLBuilderUsersService extends SQLBuilderBasic{
         statement = connection.prepareStatement(UsersStatements.UPDATE_SQL);
         setString(statement, 1, name);
         setLong(statement, 2, id);
+        logStatement("user service update");
         return statement;
     }
     
@@ -168,6 +170,7 @@ public class SQLBuilderUsersService extends SQLBuilderBasic{
         needId();
         statement = connection.prepareStatement(UsersStatements.DELETE_SQL);
         setLong(statement, 1, id);
+        logStatement("user service delete");
         return statement;
     }
     
@@ -175,6 +178,7 @@ public class SQLBuilderUsersService extends SQLBuilderBasic{
         needId();
         statement = connection.prepareStatement(UsersStatements.DELETE_ACCOUNTS_SUB_SQL);
         setLong(statement, 1, id);
+        logStatement("user service delete accounts");
         return statement;
     }
     
@@ -182,6 +186,7 @@ public class SQLBuilderUsersService extends SQLBuilderBasic{
         needId();
         statement = connection.prepareStatement(UsersStatements.DELETE_RECORDS_SUB_SQL);
         setLong(statement, 1, id);
+        logStatement("user service delete records");
         return statement;
     }
     
@@ -189,6 +194,7 @@ public class SQLBuilderUsersService extends SQLBuilderBasic{
         needId();
         statement = connection.prepareStatement(UsersStatements.UPDATE_RECORDS_BEFORE_USER_DELETE);
         setLong(statement, 1, id);
+        logStatement("user service update records before delete");
         return statement;
     }
     
@@ -196,6 +202,7 @@ public class SQLBuilderUsersService extends SQLBuilderBasic{
         needId();
         statement = connection.prepareStatement(UsersStatements.LOAD_USERS_ACCOUNTS_SQL);
         setLong(statement, 1, id);
+        logStatement("user service load accounts");
         return statement;
     }
     
@@ -203,11 +210,13 @@ public class SQLBuilderUsersService extends SQLBuilderBasic{
         needId();
         statement = connection.prepareStatement(UsersStatements.SELECT_SQL);
         statement.setLong(1, id);
+        logStatement("user service select");
         return statement;
     }
     
-    private PreparedStatement buildSelectUsersNames() throws SQLException{
+    private PreparedStatement buildSelectUserNames() throws SQLException{
         statement = connection.prepareStatement(UsersStatements.SELECT_USERS_NAMES_SQL);
+        logStatement("user service select user names");
         return statement;
     }
     

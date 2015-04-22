@@ -10,9 +10,10 @@ public class AccountsMetaData implements TableMetaData {
     public static final String TABLE_NAME = "Accounts";
     public static final String COLUMN_ID = "ID";
     public static final String COLUMN_USER_ID = "UserID";
+    public static final String COLUMN_CURRENCY = "Currency";
     public static final String COLUMN_NAME = "Name";
     public static final String COLUMN_DESCRIPTION = "Description";
-
+    
     private AccountsMetaData() {}
 
     @Override
@@ -22,10 +23,12 @@ public class AccountsMetaData implements TableMetaData {
                 return 1;
             case (COLUMN_USER_ID):
                 return 2;
-            case (COLUMN_NAME):
+            case (COLUMN_CURRENCY):
                 return 3;
-            case (COLUMN_DESCRIPTION):
+            case (COLUMN_NAME):
                 return 4;
+            case (COLUMN_DESCRIPTION):
+                return 5;
             default :
                 throw new IllegalArgumentException("No column with name: " + columnName);
         }
@@ -55,8 +58,10 @@ public class AccountsMetaData implements TableMetaData {
             case (2):
                 return COLUMN_USER_ID;
             case (3):
-                return COLUMN_NAME;
+                return COLUMN_CURRENCY;
             case (4):
+                return COLUMN_NAME;
+            case (5):
                 return COLUMN_DESCRIPTION;
             default :
                 throw new IllegalArgumentException("No columns at position " + pos);

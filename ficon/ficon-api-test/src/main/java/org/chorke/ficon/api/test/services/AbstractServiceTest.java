@@ -4,7 +4,9 @@ package org.chorke.ficon.api.test.services;
 import java.math.BigDecimal;
 import java.util.Calendar;
 import java.util.Collection;
+import java.util.Currency;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import org.chorke.ficon.api.objects.Account;
@@ -149,9 +151,16 @@ public abstract class AbstractServiceTest<S, O> {
         return us;
     }
     
+    protected static final Currency DEFAULT_CURRENCY = Currency.getInstance(new Locale("sk", "SK"));
+    
     protected Account getAccount(Long id, Long userID, String name,
             String description, List<TransactionRecord> records){
-        Account ac = new Account(userID);
+        return getAccount(id, userID, DEFAULT_CURRENCY, name, description, records);
+    }
+    
+    protected Account getAccount(Long id, Long userID, Currency currency, String name,
+            String description, List<TransactionRecord> records){
+        Account ac = new Account(userID, currency);
         if(id != null){
             ac.setId(id);
         }
@@ -199,6 +208,7 @@ public abstract class AbstractServiceTest<S, O> {
         assertEquals(ac1.getId(), ac2.getId());
         assertEquals(ac1.getName(), ac2.getName());
         assertEquals(ac1.getUsersID(), ac2.getUsersID());
+        assertEquals(ac1.getCurrency(), ac2.getCurrency());
         if(checkTransactions){
             deepCollectionsTransactionsEquals(ac1.getTransactions(), ac2.getTransactions());
         }

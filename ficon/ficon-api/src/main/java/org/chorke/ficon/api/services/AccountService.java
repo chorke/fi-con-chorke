@@ -6,6 +6,7 @@ import java.util.Properties;
 import org.chorke.ficon.api.exceptions.AccountServiceException;
 import org.chorke.ficon.api.objects.Account;
 import org.chorke.ficon.api.objects.TransactionRecord;
+import org.chorke.ficon.api.utils.ExchangeRateTable;
 
 /**
  *
@@ -122,11 +123,13 @@ public interface AccountService {
      * @param template contains name, description, transaction time and 
      *  ammount of money (if negative source and destination accounts
      * will be swapped)
+     * @param table exchange rate table
      * @throws AccountServiceException if some error occurs
      * @throws IllegalArgumentException if some argument has either inappropriate
      *      field or is null.
      */
-    void transferMoney(Account from, Account to, TransactionRecord template) throws AccountServiceException;
+    void transferMoney(Account from, Account to,
+            TransactionRecord template, ExchangeRateTable table) throws AccountServiceException;
     
     /**
      * Returns IDs and names of all accounts of user with ID {@code usersID}.

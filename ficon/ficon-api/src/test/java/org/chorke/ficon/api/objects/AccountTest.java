@@ -2,6 +2,8 @@
 package org.chorke.ficon.api.objects;
 
 import java.math.BigDecimal;
+import java.util.Currency;
+import java.util.Locale;
 import org.junit.Test;
 import static org.junit.Assert.fail;
 import org.junit.Before;
@@ -31,13 +33,15 @@ public class AccountTest {
     
     private Account account;
     
+    private static final Currency DEFAULT_CURRENCY = Currency.getInstance(new Locale("sk", "SK"));
+    
     @Before
     public void setUp(){
         MockitoAnnotations.initMocks(this);
         setUpTransactionBehavior(transaction1, 1L, accountID1, amount1);
         setUpTransactionBehavior(transaction2, 2L, accountID1, amount2);
         setUpTransactionBehavior(transaction3, 3L, accountID2, amount3);
-        account = new Account(1L);
+        account = new Account(1L, DEFAULT_CURRENCY);
         account.setId(accountID1);
     }
     
@@ -49,8 +53,13 @@ public class AccountTest {
     }
     
     @Test(expected = IllegalArgumentException.class)
-    public void createNewInstanceTest(){
-        account = new Account(null);
+    public void createNewInstanceTestNullID(){
+        account = new Account(null, DEFAULT_CURRENCY);
+    }
+    
+    @Test(expected = IllegalArgumentException.class)
+    public void createNewInstanceTestNullCurrency(){
+        account = new Account(1L, null);
     }
     
     @Test(expected = IllegalStateException.class)

@@ -15,7 +15,6 @@ import org.chorke.ficon.backend.sql.metadata.TransactionRecordsMetaData;
  * @author Chorke
  */
 public class SQLBuilderTransactionRecordsService extends SQLBuilderBasic {
-//TODO implement and add methods
 
     static interface TransactionRecordsStatements {
 
@@ -38,7 +37,7 @@ public class SQLBuilderTransactionRecordsService extends SQLBuilderBasic {
     }
     
     public static interface StatementTypeTransactionRecrod extends StatementType{
-        static final int TYPE_UPDATE_RECORDS_BEFORE_DELETE = 30; //TODO
+        static final int TYPE_UPDATE_RECORDS_BEFORE_DELETE = 30;
     }
     
     private static final TransactionRecordsMetaData RECORDS_META_DATA = TransactionRecordsMetaData.INSTANCE;
@@ -84,6 +83,7 @@ public class SQLBuilderTransactionRecordsService extends SQLBuilderBasic {
         needId();
         statement = connection.prepareStatement(TransactionRecordsStatements.DELETE_SQL);
         setLong(statement, 1, id);
+        logStatement("records service delete");
         return statement;
     }
     
@@ -91,6 +91,7 @@ public class SQLBuilderTransactionRecordsService extends SQLBuilderBasic {
         needId();
         statement = connection.prepareStatement(TransactionRecordsStatements.UPDATE_RECORDS_BEFORE_DELETE);
         setLong(statement, 1, id);
+        logStatement("records service update before delete");
         return statement;
     }
     
@@ -98,6 +99,7 @@ public class SQLBuilderTransactionRecordsService extends SQLBuilderBasic {
         needId();
         statement = connection.prepareStatement(TransactionRecordsStatements.SELECT_SQL);
         setLong(statement, 1, id);
+        logStatement("records service select");
         return statement;
     }
 
@@ -142,6 +144,7 @@ public class SQLBuilderTransactionRecordsService extends SQLBuilderBasic {
                     positionMapping.get(TransactionRecordsMetaData.COLUMN_TRANSACTION_TIME).intValue(),
                     transactionTime);
         }
+        logStatement("records service update");
         return statement;
     }
 
@@ -234,6 +237,7 @@ public class SQLBuilderTransactionRecordsService extends SQLBuilderBasic {
                 RECORDS_META_DATA.getInsertColumnMapping(
                     TransactionRecordsMetaData.COLUMN_TRANSACTION_TIME, true),
                 transactionTime);
+        logStatement("records service insert");
         return statement;
     }
 

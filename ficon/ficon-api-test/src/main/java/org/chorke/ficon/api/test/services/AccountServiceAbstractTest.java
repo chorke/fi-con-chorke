@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Currency;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
@@ -14,6 +15,7 @@ import org.chorke.ficon.api.exceptions.AccountServiceException;
 import org.chorke.ficon.api.objects.Account;
 import org.chorke.ficon.api.objects.TransactionRecord;
 import org.chorke.ficon.api.services.AccountService;
+import org.chorke.ficon.api.utils.ExchangeRateTable;
 import static org.junit.Assert.*;
 import org.junit.Test;
 
@@ -212,14 +214,15 @@ public abstract class AccountServiceAbstractTest
      * @see #afterTransferMoney(java.lang.Exception, org.chorke.ficon.api.objects.Account, org.chorke.ficon.api.objects.Account, java.math.BigDecimal) 
      * @see AccountService#transferMoney(org.chorke.ficon.api.objects.Account, org.chorke.ficon.api.objects.Account, java.math.BigDecimal) 
      */
-    protected final void doTransferMoney(Account fromAccount, Account toAccount, TransactionRecord template)
+    protected final void doTransferMoney(Account fromAccount, Account toAccount, TransactionRecord template,
+            ExchangeRateTable table)
             throws AccountServiceException{
         try{
-            beforeTransferMoney(fromAccount, toAccount, template);
-            service.transferMoney(fromAccount, toAccount, template);
-            afterTransferMoney(null, fromAccount, toAccount, template);
+            beforeTransferMoney(fromAccount, toAccount, template, table);
+            service.transferMoney(fromAccount, toAccount, template, table);
+            afterTransferMoney(null, fromAccount, toAccount, template, table);
         } catch (AccountServiceException | IllegalArgumentException ex){
-            afterTransferMoney(ex, fromAccount, toAccount, template);
+            afterTransferMoney(ex, fromAccount, toAccount, template, table);
             throw ex;
         }
     }
@@ -355,8 +358,10 @@ public abstract class AccountServiceAbstractTest
      * @param fromAccount
      * @param toAccount
      * @param template
+     * @param table 
      */
-    protected abstract void beforeTransferMoney(Account fromAccount, Account toAccount, TransactionRecord template);
+    protected abstract void beforeTransferMoney(Account fromAccount, Account toAccount,
+            TransactionRecord template, ExchangeRateTable table);
     /**
      * This method is executed immediately after calling transferMoney method of service.
      * 
@@ -364,9 +369,10 @@ public abstract class AccountServiceAbstractTest
      * @param fromAccount
      * @param toAccount
      * @param template 
+     * @param table 
      */
     protected abstract void afterTransferMoney(Exception thrown, Account fromAccount, Account toAccount,
-            TransactionRecord template);
+            TransactionRecord template, ExchangeRateTable table);
 
     /**
      * This method is executed closely before calling update method of service.
@@ -712,6 +718,24 @@ public abstract class AccountServiceAbstractTest
             fail("user's ID has been changed");
         } catch (AccountServiceException ex){
             Account acClone = getAccount(ac.getId(), 1L, "namebefore", "description before update", null);
+            deepCollectionsAccountsEquals(Arrays.asList(acClone), getAllObjects(), false);
+            throw ex;
+        }
+    }
+    
+    @Test(expected = AccountServiceException.class)
+    public void updateOkArgumentCurrencyChanged() throws AccountServiceException{
+        Currency eur = Currency.getInstance("EUR");
+        Currency usd = Currency.getInstance("USD");
+        Account ac = getAccount(null, 1L, eur, "namebefore", "description before update", null);
+        saveObject(ac);
+        Account acToUpdate = getAccount(ac.getId(), ac.getUsersID(), usd,
+                "nameafter", "description after update", null);
+        try {
+            doUpdateAccount(acToUpdate);
+            fail("currency has been changed");
+        } catch (AccountServiceException ex){
+            Account acClone = getAccount(ac.getId(), 1L, eur, "namebefore", "description before update", null);
             deepCollectionsAccountsEquals(Arrays.asList(acClone), getAllObjects(), false);
             throw ex;
         }
@@ -2045,14 +2069,14 @@ public abstract class AccountServiceAbstractTest
     @Test(expected = IllegalArgumentException.class)
     public void transferFirstArgumentNull() throws AccountServiceException{
         Account ac = getAccount(1L, 1L, "name", "description", null);
-        doTransferMoney(null, ac, templateAmountOne);
+        doTransferMoney(null, ac, templateAmountOne, new ExchangeRateTable());
         fail("null first argument");
     }
     
     @Test(expected = IllegalArgumentException.class)
     public void transferSecondArgumentNull() throws AccountServiceException{
         Account ac = getAccount(1L, 1L, "name", "description", null);
-        doTransferMoney(ac, null, templateAmountOne);
+        doTransferMoney(ac, null, templateAmountOne, new ExchangeRateTable());
         fail("null second argument");
     }
     
@@ -2060,7 +2084,15 @@ public abstract class AccountServiceAbstractTest
     public void transferThirdArgumentNull() throws AccountServiceException{
         Account from = getAccount(1L, 1L, "from", "from account", null);
         Account to = getAccount(2L, 1L, "to", "to account", null);
-        doTransferMoney(from, to, null);
+        doTransferMoney(from, to, null, new ExchangeRateTable());
+        fail("null third argument argument");
+    }
+    
+    @Test(expected = IllegalArgumentException.class)
+    public void transferForthArgumentNull() throws AccountServiceException{
+        Account from = getAccount(1L, 1L, "from", "from account", null);
+        Account to = getAccount(2L, 1L, "to", "to account", null);
+        doTransferMoney(from, to, templateAmountOne, null);
         fail("null third argument argument");
     }
     
@@ -2068,7 +2100,7 @@ public abstract class AccountServiceAbstractTest
     public void transferFromAndToHaveSameID() throws AccountServiceException{
         Account from = getAccount(1L, 1L, "from", "from account", null);
         Account to = getAccount(1L, 1L, "to", "to account", null);
-        doTransferMoney(from, to, templateAmountOne);
+        doTransferMoney(from, to, templateAmountOne, new ExchangeRateTable());
         fail("from and to have same ID");
     }
     
@@ -2078,33 +2110,41 @@ public abstract class AccountServiceAbstractTest
         Account to = getAccount(2L, 1L, "to", "to account", null);
         TransactionRecord templateAmountZero = getTransactionRecord(null, 1L, "transactionZero",
             "transfering money: amount 0€", null, BigDecimal.ZERO, new GregorianCalendar());
-        doTransferMoney(from, to, templateAmountZero);
+        doTransferMoney(from, to, templateAmountZero, new ExchangeRateTable());
         fail("nothing to transfer");
     }
     
     @Test
     public void transferOkArgumentsEmptyHistory() throws AccountServiceException{
-        Account from = getAccount(null, 1L, "from", "from account", null);
-        Account to = getAccount(null, 1L, "to", "to account", null);
+        Currency eur = Currency.getInstance("EUR");
+        Currency usd = Currency.getInstance("USD");
+        Account from = getAccount(null, 1L, eur, "from", "from account", null);
+        Account to = getAccount(null, 1L, usd, "to", "to account", null);
         saveObject(from);
         saveObject(to);
-        doTransferMoney(from, to, templateAmountTen);
+        
+        ExchangeRateTable table = new ExchangeRateTable();
+        BigDecimal rate = new BigDecimal("1.34");
+        table.addExchangeRate(eur, usd, rate);
+        doTransferMoney(from, to, templateAmountTen, table);
         
         assertEquals(0, BigDecimal.TEN.negate().compareTo(from.getBalance()));
-        assertEquals(0, BigDecimal.TEN.compareTo(to.getBalance()));
+        assertEquals(0, table.exchange(eur, usd, BigDecimal.TEN).compareTo(to.getBalance()));
         assertEquals(from.getTransactions().size(), 1);
         assertEquals(to.getTransactions().size(), 1);
         
         TransactionRecord deposit = to.getTransactions().get(0);
         TransactionRecord withdraw = from.getTransactions().get(0);
-         TransactionRecord depositCopy = getTransactionRecord(
+        TransactionRecord depositCopy = getTransactionRecord(
                 deposit.getId(), to.getId(), templateAmountTen.getName(),
                 templateAmountTen.getDescription(), withdraw.getId(),
-                templateAmountTen.getAmount(), templateAmountTen.getTransactionTime());
+                table.exchange(eur, usd, templateAmountTen.getAmount()),
+                templateAmountTen.getTransactionTime());
         TransactionRecord withdrawCopy = getTransactionRecord(
                 withdraw.getId(), from.getId(), templateAmountTen.getName(),
                 templateAmountTen.getDescription(), deposit.getId(),
-                templateAmountTen.getAmount().negate(), templateAmountTen.getTransactionTime());
+                templateAmountTen.getAmount().negate(),
+                templateAmountTen.getTransactionTime());
         
         List<TransactionRecord> fromHistory = getTransactionHistoryOfAccount(from.getId());
         List<TransactionRecord> toHistory = getTransactionHistoryOfAccount(to.getId());
@@ -2115,10 +2155,18 @@ public abstract class AccountServiceAbstractTest
     
     @Test
     public void transferOkArgumentsWithHistory() throws AccountServiceException{
-        Account from = getAccount(null, 1L, "from", "from account", null);
-        Account to = getAccount(null, 1L, "to", "to account", null);
+        Currency eur = Currency.getInstance("EUR");
+        Currency usd = Currency.getInstance("USD");
+        Account from = getAccount(null, 1L, eur, "from", "from account", null);
+        Account to = getAccount(null, 1L, usd, "to", "to account", null);
+        
         saveObject(from);
         saveObject(to);
+        
+        ExchangeRateTable table = new ExchangeRateTable();
+        BigDecimal rate = new BigDecimal("1.34");
+        table.addExchangeRate(eur, usd, rate);
+        
         TransactionRecord fromAccountRecord = getTransactionRecord(
                 null, from.getId(), "oldfrom", "old transaction", null, BigDecimal.ONE, new GregorianCalendar());
         TransactionRecord toAccountRecord = getTransactionRecord(
@@ -2127,10 +2175,10 @@ public abstract class AccountServiceAbstractTest
         from.addTransaction(fromAccountRecord);
         to.addTransaction(toAccountRecord);
         
-        doTransferMoney(from, to, templateAmountTen);
+        doTransferMoney(from, to, templateAmountTen, table);
         
         assertEquals(0, BigDecimal.ONE.subtract(BigDecimal.TEN).compareTo(from.getBalance()));
-        assertEquals(0, BigDecimal.TEN.add(BigDecimal.TEN).compareTo(to.getBalance()));
+        assertEquals(0, BigDecimal.TEN.add(table.exchange(eur, usd, BigDecimal.TEN)).compareTo(to.getBalance()));
         assertEquals(from.getTransactions().size(), 2);
         assertEquals(to.getTransactions().size(), 2);
         
@@ -2145,7 +2193,8 @@ public abstract class AccountServiceAbstractTest
         TransactionRecord depositCopy = getTransactionRecord(
                 deposit.getId(), to.getId(), templateAmountTen.getName(),
                 templateAmountTen.getDescription(), withdraw.getId(),
-                templateAmountTen.getAmount(), templateAmountTen.getTransactionTime());
+                table.exchange(eur, usd, templateAmountTen.getAmount()),
+                templateAmountTen.getTransactionTime());
         TransactionRecord withdrawCopy = getTransactionRecord(
                 withdraw.getId(), from.getId(), templateAmountTen.getName(),
                 templateAmountTen.getDescription(), deposit.getId(),

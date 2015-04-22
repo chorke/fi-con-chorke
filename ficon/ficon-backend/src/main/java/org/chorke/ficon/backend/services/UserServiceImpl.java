@@ -14,6 +14,8 @@ import org.chorke.ficon.api.services.UserService;
 import org.chorke.ficon.backend.sql.SQLBuilderUsersService;
 import org.chorke.ficon.backend.sql.SQLBuilderUsersService.StatementTypeUsers;
 import org.chorke.ficon.backend.sql.metadata.UsersMetaData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -21,12 +23,17 @@ import org.chorke.ficon.backend.sql.metadata.UsersMetaData;
  */
 public class UserServiceImpl extends BasicService implements UserService{
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(UserServiceImpl.class);
+    
     public UserServiceImpl(DataSource dataSource) {
         super(dataSource);
     }
     
     @Override
     public void createNewUser(User user) throws UserServiceException {
+        if(LOGGER.isDebugEnabled()){
+            LOGGER.debug("Trying to create an user: {}.", user);
+        }
         checkUser(user, true);
         Connection con = null;
         SQLBuilderUsersService builder = null;
@@ -41,11 +48,13 @@ public class UserServiceImpl extends BasicService implements UserService{
             user.setId(id);
         } catch (SQLException ex){
             endExpected = true;
+            LOGGER.error("Error while create user - rollback.", ex);
             rollback(con, "Error while creating new user.", UserServiceException.class);
             throw new UserServiceException("Error while creating new user: "
                     + ex.getMessage(), ex);
         } finally {
             if(!endExpected){
+                LOGGER.error("Uncommitted transaction [new user] - rollback.");
                 rollback(con, "Transaction has not been committed.", UserServiceException.class);
             }
             saveClose(builder, con);
@@ -54,6 +63,9 @@ public class UserServiceImpl extends BasicService implements UserService{
 
     @Override
     public void updateUser(User user) throws UserServiceException {
+        if(LOGGER.isDebugEnabled()){
+            LOGGER.debug("Trying to update an user: {}.", user);
+        }
         checkUser(user, false);
         Connection con = null;
         SQLBuilderUsersService builder = null;
@@ -74,11 +86,13 @@ public class UserServiceImpl extends BasicService implements UserService{
             endExpected = true;
         } catch (SQLException ex){
             endExpected = true;
+            LOGGER.error("Error while updating user - rollback.", ex);
             rollback(con, "Error while updating user.", UserServiceException.class);
             throw new UserServiceException("Error while updating user: "
                     + ex.getMessage(), ex);
         } finally {
             if(!endExpected){
+                LOGGER.error("Uncommitted transaction [update user] - rollback.");
                 rollback(con, "Transaction has not been committed.", UserServiceException.class);
             }
             saveClose(builder, con);
@@ -87,6 +101,9 @@ public class UserServiceImpl extends BasicService implements UserService{
 
     @Override
     public void deleteUser(User user) throws UserServiceException {
+        if(LOGGER.isDebugEnabled()){
+            LOGGER.debug("Trying to delete an user: {}.", user);
+        }
         checkUserOnNullAndId(user, false);
         Connection con = null;
         SQLBuilderUsersService builderUsers = null;
@@ -113,6 +130,7 @@ public class UserServiceImpl extends BasicService implements UserService{
             endExpected = true;
         } catch (SQLException ex){
             endExpected = true;
+            LOGGER.error("Error while deleting user - rollback.", ex);
             rollback(con, "Error while deleting user and his accounts and transaction records.",
                     UserServiceException.class);
             throw new UserServiceException("Error while deleting user "
@@ -120,6 +138,7 @@ public class UserServiceImpl extends BasicService implements UserService{
                     + ex.getMessage(), ex);
         } finally {
             if(!endExpected){
+                LOGGER.error("Uncommitted transaction [delete user] - rollback.");
                 rollback(con, "Transaction has not been committed.", UserServiceException.class);
             }
             saveClose(builderUpdateRecords, builderRecords, builderAccounts, builderUsers, con);
@@ -128,6 +147,9 @@ public class UserServiceImpl extends BasicService implements UserService{
 
     @Override
     public User getUser(Long id) throws UserServiceException {
+        if(LOGGER.isDebugEnabled()){
+            LOGGER.debug("Trying to get an user: {}.", id);
+        }
         checkUsersID(id, false);
         try(Connection con = getConnection(true);
             SQLBuilderUsersService builder = 
@@ -140,6 +162,7 @@ public class UserServiceImpl extends BasicService implements UserService{
             }
             return fromDB;
         } catch (SQLException ex){
+            LOGGER.error("Error while getting user.", ex);
             throw new UserServiceException("Error while getting user: "
                     + ex.getMessage(), ex);
         }
@@ -147,6 +170,9 @@ public class UserServiceImpl extends BasicService implements UserService{
 
     @Override
     public User loadUsersAccounts(User user) throws UserServiceException {
+        if(LOGGER.isDebugEnabled()){
+            LOGGER.debug("Trying to load user's accounts: {}.", user);
+        }
         checkUserOnNullAndId(user, false);
         try(Connection con = getConnection(true);
             SQLBuilderUsersService builder = 
@@ -159,6 +185,7 @@ public class UserServiceImpl extends BasicService implements UserService{
             }
             return user;
         } catch (SQLException ex){
+            LOGGER.error("Error while loading user's accounts.", ex);
             throw new UserServiceException("Error while loading user's accounts: "
                     + ex.getMessage(), ex);
         }
@@ -166,6 +193,9 @@ public class UserServiceImpl extends BasicService implements UserService{
 
     @Override
     public Map<Long, String> getUsersNames() throws UserServiceException {
+        if(LOGGER.isDebugEnabled()){
+            LOGGER.debug("Trying to get names of all users.");
+        }
         try(Connection con = getConnection(true);
             SQLBuilderUsersService builder = 
                     new SQLBuilderUsersService(con, StatementTypeUsers.TYPE_SELECT_USERS_NAMES)){
@@ -184,6 +214,7 @@ public class UserServiceImpl extends BasicService implements UserService{
             }
             return users;
         } catch (SQLException ex){
+            LOGGER.error("Error while getting names of all users.", ex);
             throw new UserServiceException("Error while getting names: "
                     + ex.getMessage(), ex);
         }

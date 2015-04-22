@@ -32,7 +32,7 @@
         <dependency>
             <groupId>org.chorke</groupId>
             <artifactId>ficon-api-test</artifactId>
-            <version>0.1</version>
+            <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -40,6 +40,23 @@
             <artifactId>derby</artifactId>
             <version>10.11.1.1</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.chorke</groupId>
+            <artifactId>ficon-shared-resources</artifactId>
+            <version>${project.version}</version>
         </dependency>
     </dependencies>
     <build>

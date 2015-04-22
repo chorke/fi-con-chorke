@@ -9,6 +9,7 @@ import java.sql.Statement;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.Collection;
+import java.util.Currency;
 import java.util.GregorianCalendar;
 import java.util.LinkedList;
 import javax.sql.DataSource;
@@ -78,6 +79,7 @@ public class TestUtils {
             st.addBatch("CREATE TABLE " + AccountsMetaData.TABLE_NAME + "("
                     + AccountsMetaData.COLUMN_ID + " integer GENERATED ALWAYS AS IDENTITY,"
                     + AccountsMetaData.COLUMN_USER_ID + " integer NOT NULL,"
+                    + AccountsMetaData.COLUMN_CURRENCY + " varchar(3) NOT NULL,"
                     + AccountsMetaData.COLUMN_NAME + " varchar(50) NOT NULL,"
                     + AccountsMetaData.COLUMN_DESCRIPTION + " varchar(100),"
                     + "PRIMARY KEY (" + AccountsMetaData.COLUMN_ID + "))");
@@ -129,12 +131,18 @@ public class TestUtils {
         String sql = "INSERT INTO " + AccountsMetaData.TABLE_NAME
                 + " (" + AccountsMetaData.INSTANCE.getColumnNameAtPositionInInsert(1, true) + ","
                 + AccountsMetaData.INSTANCE.getColumnNameAtPositionInInsert(2, true) + ","
-                + AccountsMetaData.INSTANCE.getColumnNameAtPositionInInsert(3, true)
-                + ") VALUES (?,?,?)";
+                + AccountsMetaData.INSTANCE.getColumnNameAtPositionInInsert(3, true) + ","
+                + AccountsMetaData.INSTANCE.getColumnNameAtPositionInInsert(4, true)
+                + ") VALUES (?,?,?,?)";
         try(PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)){
-            ps.setLong(1, account.getUsersID());
-            ps.setString(2, account.getName());
-            ps.setString(3, account.getDescription());
+            ps.setLong(AccountsMetaData.INSTANCE.getInsertColumnMapping(AccountsMetaData.COLUMN_USER_ID, true),
+                    account.getUsersID());
+            ps.setString(AccountsMetaData.INSTANCE.getInsertColumnMapping(AccountsMetaData.COLUMN_NAME, true),
+                    account.getName());
+            ps.setString(AccountsMetaData.INSTANCE.getInsertColumnMapping(AccountsMetaData.COLUMN_DESCRIPTION, true),
+                    account.getDescription());
+            ps.setString(AccountsMetaData.INSTANCE.getInsertColumnMapping(AccountsMetaData.COLUMN_CURRENCY, true),
+                    account.getCurrency().getCurrencyCode());
             int updates = ps.executeUpdate();
             if(updates < 1){
                 throw new ObjectManipulationException("Account has not been saved: " + account);
@@ -432,7 +440,8 @@ public class TestUtils {
         if(rs == null || !rs.next()){
             return null;
         }
-        Account ac = new Account(rs.getLong(AccountsMetaData.COLUMN_USER_ID));
+        Account ac = new Account(rs.getLong(AccountsMetaData.COLUMN_USER_ID),
+                Currency.getInstance(rs.getString(AccountsMetaData.COLUMN_CURRENCY)));
         ac.setId(rs.getLong(AccountsMetaData.COLUMN_ID));
         ac.setName(rs.getString(AccountsMetaData.COLUMN_NAME));
         ac.setDescription(rs.getString(AccountsMetaData.COLUMN_DESCRIPTION));

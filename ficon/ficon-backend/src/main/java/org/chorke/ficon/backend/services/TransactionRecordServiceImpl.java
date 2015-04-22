@@ -12,6 +12,8 @@ import org.chorke.ficon.api.objects.TransactionRecord;
 import org.chorke.ficon.api.services.TransactionRecordService;
 import org.chorke.ficon.backend.sql.SQLBuilderTransactionRecordsService;
 import org.chorke.ficon.backend.sql.SQLBuilderTransactionRecordsService.StatementTypeTransactionRecrod;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -19,11 +21,16 @@ import org.chorke.ficon.backend.sql.SQLBuilderTransactionRecordsService.Statemen
  */
 public class TransactionRecordServiceImpl extends BasicService implements TransactionRecordService{
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(TransactionRecordServiceImpl.class);
+    
     public TransactionRecordServiceImpl(DataSource dataSource) {
         super(dataSource);
     }
     @Override
     public void createNewTransactionRecord(TransactionRecord record) throws TransactionRecordServiceException {
+        if(LOGGER.isDebugEnabled()){
+            LOGGER.debug("Trying to create a record: {}.", record);
+        }
         checkRecord(record, true);
         Connection con = null;
         SQLBuilderTransactionRecordsService builder = null;
@@ -44,11 +51,13 @@ public class TransactionRecordServiceImpl extends BasicService implements Transa
             record.setId(id);
         } catch (SQLException ex){
             endExpected = true;
+            LOGGER.error("Error while create record - rollback.", ex);
             rollback(con, "Error while creating new record.", TransactionRecordServiceException.class);
             throw new TransactionRecordServiceException("Error while creating new record: "
-                    + record, ex);
+                    + ex.getMessage(), ex);
         } finally {
             if(!endExpected){
+                LOGGER.error("Uncommitted transaction [new record] - rollback.");
                 rollback(con, "Transaction has not been committed.", TransactionRecordServiceException.class);
             }
             saveClose(builder, con);
@@ -57,6 +66,9 @@ public class TransactionRecordServiceImpl extends BasicService implements Transa
 
     @Override
     public void updateTransactionRecord(TransactionRecord record) throws TransactionRecordServiceException {
+        if(LOGGER.isDebugEnabled()){
+            LOGGER.debug("Trying to update a record: {}.", record);
+        }
         checkRecord(record, false);
         Connection con = null;
         SQLBuilderTransactionRecordsService builder = null;
@@ -93,11 +105,13 @@ public class TransactionRecordServiceImpl extends BasicService implements Transa
             endExpected = true;
         } catch (SQLException ex){
             endExpected = true;
+            LOGGER.error("Error while updating record - rollback.", ex);
             rollback(con, "Error while updating record.", TransactionRecordServiceException.class);
             throw new TransactionRecordServiceException("Error while updating record: "
-                    + record, ex);
+                    + ex.getMessage(), ex);
         } finally {
             if(!endExpected){
+                LOGGER.error("Uncommitted transaction [update record] - rollback.");
                 rollback(con, "Transaction has not been committed.", TransactionRecordServiceException.class);
             }
             saveClose(builder, con);
@@ -106,6 +120,9 @@ public class TransactionRecordServiceImpl extends BasicService implements Transa
 
     @Override
     public TransactionRecord getTransactionRecord(Long id) throws TransactionRecordServiceException {
+        if(LOGGER.isDebugEnabled()){
+            LOGGER.debug("Trying to get a record: {}.", id);
+        }
         checkRecordsID(id, false);
         try(Connection con = getConnection(true);
             SQLBuilderTransactionRecordsService builder = 
@@ -114,10 +131,12 @@ public class TransactionRecordServiceImpl extends BasicService implements Transa
             ResultSet userSet = builder.build().executeQuery();
             TransactionRecord fromDB = getRecordFromResultSet(userSet);
             if(userSet.next()){
+                LOGGER.error("Multiple ID in one table [records table].");
                 throw new TransactionRecordServiceException("Multiple ID in one table.");
             }
             return fromDB;
         } catch (SQLException ex){
+            LOGGER.error("Error while getting record - rollback.", ex);
             throw new TransactionRecordServiceException("Error while getting record: "
                     + ex.getMessage(), ex);
         }
@@ -125,6 +144,9 @@ public class TransactionRecordServiceImpl extends BasicService implements Transa
 
     @Override
     public void deleteTransactionRecord(TransactionRecord record) throws TransactionRecordServiceException {
+        if(LOGGER.isDebugEnabled()){
+            LOGGER.debug("Trying to delete a record: {}.", record);
+        }
         checkRecordOnNullAndId(record, false);
         Connection con = null;
         SQLBuilderTransactionRecordsService builderDelete = null;
@@ -145,11 +167,13 @@ public class TransactionRecordServiceImpl extends BasicService implements Transa
             endExpected = true;
         } catch (SQLException ex){
             endExpected = true;
+            LOGGER.error("Error while deleting record - rollback.", ex);
             rollback(con, "Error while deleting record.", TransactionRecordServiceException.class);
             throw new TransactionRecordServiceException("Error while deleting record: "
                     + ex.getMessage(), ex);
         } finally {
             if(!endExpected){
+                LOGGER.error("Uncommitted transaction [delete record] - rollback.");
                 rollback(con, "Transaction has not been committed.", TransactionRecordServiceException.class);
             }
             saveClose(builderUpdate, builderDelete, con);

@@ -7,6 +7,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Calendar;
+import java.util.Currency;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -19,7 +20,6 @@ import org.chorke.ficon.backend.sql.metadata.TransactionRecordsMetaData;
  * @author Chorke
  */
 public class SQLBuilderAccountsService extends SQLBuilderBasic{
-//TODO implement and add methods
     
     private static final AccountsMetaData ACCOUNTS_META_DATA = AccountsMetaData.INSTANCE;
     
@@ -28,8 +28,9 @@ public class SQLBuilderAccountsService extends SQLBuilderBasic{
         static final String INSTERT_SQL = "INSERT INTO " + AccountsMetaData.TABLE_NAME
                 + " (" + ACCOUNTS_META_DATA.getColumnNameAtPositionInInsert(1, true) + ","
                 + ACCOUNTS_META_DATA.getColumnNameAtPositionInInsert(2, true) + ","
-                + ACCOUNTS_META_DATA.getColumnNameAtPositionInInsert(3, true)
-                + ") VALUES (?,?,?)";
+                + ACCOUNTS_META_DATA.getColumnNameAtPositionInInsert(3, true) + ","
+                + ACCOUNTS_META_DATA.getColumnNameAtPositionInInsert(4, true)
+                + ") VALUES (?,?,?,?)";
         static final String DELETE_SQL = "DELETE FROM " + AccountsMetaData.TABLE_NAME
                 + " WHERE " + AccountsMetaData.COLUMN_ID + "=?";
         static final String SELECT_SQL = "SELECT * FROM " + AccountsMetaData.TABLE_NAME
@@ -74,7 +75,8 @@ public class SQLBuilderAccountsService extends SQLBuilderBasic{
     private boolean isDescriptionSet;
     private Properties loadProperties;
     private boolean isLoadPropertiesSet;
-    private String escapedName;
+    private Currency currency;
+    private boolean isCurrencySet;
     
     public SQLBuilderAccountsService(Connection con, int statementType) throws SQLException{
         super(con, statementType);
@@ -114,6 +116,25 @@ public class SQLBuilderAccountsService extends SQLBuilderBasic{
             case (StatementTypeAccounts.TYPE_DELETE_RECORDS_SUB_QUERY):
             default :
                 throw new SQLException("Method setUserID is not allowed for this statement type: "
+                        + statementType);
+        }
+    }
+    
+    public void setCurrency(Currency currency) throws SQLException{
+        switch(statementType){
+            case (StatementTypeAccounts.TYPE_INSERT):
+                this.currency = currency;
+                isCurrencySet = true;
+                break;
+            case (StatementTypeAccounts.TYPE_SELECT_NAMES):
+            case (StatementTypeAccounts.TYPE_SELECT):
+            case (StatementTypeAccounts.TYPE_DELETE):
+            case (StatementTypeAccounts.TYPE_LOAD_HISTORY):
+            case (StatementTypeAccounts.TYPE_UPDATE):
+            case (StatementTypeAccounts.TYPE_UPDATE_RECORDS_BEFORE_DELETE):
+            case (StatementTypeAccounts.TYPE_DELETE_RECORDS_SUB_QUERY):
+            default :
+                throw new SQLException("Method setCurrency is not allowed for this statement type: "
                         + statementType);
         }
     }
@@ -203,6 +224,7 @@ public class SQLBuilderAccountsService extends SQLBuilderBasic{
         needId();
         statement = connection.prepareStatement(AccountsStatements.DELETE_SQL);
         setLong(statement, 1, id);
+        logStatement("account service delete");
         return statement;
     }
     
@@ -210,6 +232,7 @@ public class SQLBuilderAccountsService extends SQLBuilderBasic{
         needId();
         statement = connection.prepareStatement(AccountsStatements.DELETE_RECORDS_SUB_QUERY);
         setLong(statement, 1, id);
+        logStatement("account service delete records");
         return statement;
     }
     
@@ -217,6 +240,7 @@ public class SQLBuilderAccountsService extends SQLBuilderBasic{
         needId();
         statement = connection.prepareStatement(AccountsStatements.UPDATE_RECORDS_BEFORE_DELETE);
         setLong(statement, 1, id);
+        logStatement("account service update records before delete");
         return statement;
     }
     
@@ -224,6 +248,7 @@ public class SQLBuilderAccountsService extends SQLBuilderBasic{
         needUsersID();
         needName();
         needDescription();
+        needCurrency();
         
         statement = connection.prepareStatement(AccountsStatements.INSTERT_SQL,
                 Statement.RETURN_GENERATED_KEYS);
@@ -231,11 +256,15 @@ public class SQLBuilderAccountsService extends SQLBuilderBasic{
                 ACCOUNTS_META_DATA.getInsertColumnMapping(AccountsMetaData.COLUMN_USER_ID, true),
                 usersID);
         setString(statement,
+                ACCOUNTS_META_DATA.getInsertColumnMapping(AccountsMetaData.COLUMN_CURRENCY, true),
+                currency == null ? null : currency.getCurrencyCode());
+        setString(statement,
                 ACCOUNTS_META_DATA.getInsertColumnMapping(AccountsMetaData.COLUMN_NAME, true),
                 name);
         setString(statement,
                 ACCOUNTS_META_DATA.getInsertColumnMapping(AccountsMetaData.COLUMN_DESCRIPTION, true),
                 description);
+        logStatement("account service insert");
         return statement;
     }
     
@@ -255,7 +284,6 @@ public class SQLBuilderAccountsService extends SQLBuilderBasic{
         Map<String, Integer> mapping = new HashMap<>();
         mapping.put(TransactionRecordsMetaData.COLUMN_ACCOUNT_ID, 1);
         buildWhereForLoad(mapping, sql, hasAnd);
-        System.out.println(sql);
         statement = connection.prepareStatement(sql.toString());
         setLong(statement, 1, id);
         if(mapping.containsKey(LoadProperties.FROM_DATE)){
@@ -282,6 +310,7 @@ public class SQLBuilderAccountsService extends SQLBuilderBasic{
             setString(statement, mapping.get(LoadProperties.NAME_LIKE),
                     escape((String)loadProperties.get(LoadProperties.NAME_LIKE)));
         }
+        logStatement("account service load history");
         return statement;
     }
     
@@ -340,6 +369,7 @@ public class SQLBuilderAccountsService extends SQLBuilderBasic{
         needId();
         statement = connection.prepareStatement(AccountsStatements.SELECT_SQL);
         setLong(statement, 1, id);
+        logStatement("account service select");
         return statement;
     }
     
@@ -347,6 +377,7 @@ public class SQLBuilderAccountsService extends SQLBuilderBasic{
         needUsersID();
         statement = connection.prepareStatement(AccountsStatements.SELECT_NAMES_SQL);
         setLong(statement, 1, usersID);
+        logStatement("account service select names");
         return statement;
     }
     
@@ -390,7 +421,9 @@ public class SQLBuilderAccountsService extends SQLBuilderBasic{
         if(mapping.containsKey(AccountsMetaData.COLUMN_DESCRIPTION)){
             setString(statement, mapping.get(AccountsMetaData.COLUMN_DESCRIPTION), description);
         }
+        logStatement("account service update");
         return statement;
+        
     }
     
     private void needId() throws SQLException {
@@ -416,10 +449,17 @@ public class SQLBuilderAccountsService extends SQLBuilderBasic{
         }
     }
     
+    private void needCurrency() throws SQLException {
+        if (!isCurrencySet) {
+            throw new SQLException("Currency for account has not been set.");
+        }
+    }
+    
     @Override
     public void reset() {
         resetId();
         resetUserID();
+        resetCurrency();
         resetName();
         resetDescription();
     }
@@ -442,5 +482,10 @@ public class SQLBuilderAccountsService extends SQLBuilderBasic{
     private void resetDescription(){
         description = null;
         isDescriptionSet = false;
+    }
+    
+    private void resetCurrency(){
+        currency = null;
+        isCurrencySet = false;
     }
 }

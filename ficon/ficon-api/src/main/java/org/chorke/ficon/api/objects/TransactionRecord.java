@@ -10,7 +10,7 @@ import java.util.Locale;
  * 
  * @author Chorke
  */
-public class TransactionRecord {
+public class TransactionRecord implements Cloneable, Comparable<TransactionRecord>{
 
     /**
      * Transaction's ID.
@@ -209,8 +209,34 @@ public class TransactionRecord {
     public boolean equals(Object obj) {
         if(obj instanceof TransactionRecord){
             Long objId = ((TransactionRecord)obj).getId();
-            return id == null ? objId == null : id.equals(objId);
+            return id == null ? false : id.equals(objId);
         }
         return false;
+    }
+
+    @Override
+    public int compareTo(TransactionRecord o) {
+        if(o == null){
+            return -1;
+        }
+        if(this.transactionTime == null){
+            return o.transactionTime == null ? 0 : 1;
+        }
+        if(o.transactionTime == null){
+            return -1;
+        }
+        return this.transactionTime.compareTo(o.transactionTime);
+    }
+
+    @Override
+    public TransactionRecord clone(){
+        try{
+            TransactionRecord tr = (TransactionRecord)super.clone();
+            tr.setTransactionTime((Calendar)transactionTime.clone());
+            return tr;
+        } catch (CloneNotSupportedException ex){
+            //should not happend
+            throw new InternalError(ex.toString());
+        }
     }
 }

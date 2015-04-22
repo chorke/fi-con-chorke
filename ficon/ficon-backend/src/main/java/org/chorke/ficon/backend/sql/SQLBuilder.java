@@ -2,6 +2,8 @@ package org.chorke.ficon.backend.sql;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *

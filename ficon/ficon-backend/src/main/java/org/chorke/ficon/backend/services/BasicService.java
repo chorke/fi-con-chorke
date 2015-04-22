@@ -8,6 +8,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Calendar;
+import java.util.Currency;
 import java.util.GregorianCalendar;
 import javax.sql.DataSource;
 import org.chorke.ficon.api.objects.Account;
@@ -94,7 +95,8 @@ public class BasicService {
         if(rs == null || !rs.next()){
             return null;
         }
-        Account ac = new Account(rs.getLong(AccountsMetaData.COLUMN_USER_ID));
+        Account ac = new Account(rs.getLong(AccountsMetaData.COLUMN_USER_ID), 
+                Currency.getInstance(rs.getString(AccountsMetaData.COLUMN_CURRENCY)));
         ac.setDescription(rs.getString(AccountsMetaData.COLUMN_DESCRIPTION));
         ac.setName(rs.getString(AccountsMetaData.COLUMN_NAME));
         long id = rs.getLong(AccountsMetaData.COLUMN_ID);

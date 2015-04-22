@@ -8,6 +8,8 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.Calendar;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -15,6 +17,8 @@ import java.util.Calendar;
  */
 public abstract class SQLBuilderBasic implements SQLBuilder{
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(SQLBuilder.class);
+    
     protected Connection connection;
     
     protected PreparedStatement statement;
@@ -27,7 +31,13 @@ public abstract class SQLBuilderBasic implements SQLBuilder{
         this.statementType = statementType;
         reset();
     }
-            
+    
+    protected void logStatement(String method) {
+        if(LOGGER.isDebugEnabled()){
+            LOGGER.debug("Prepared statement [{}]: {}", method, statement);
+        }
+    }
+    
     private void checkConnection(Connection con) throws SQLException{
         if(con == null || con.isClosed()){
             throw new SQLException("Connection is invalid (null or closed) [" + con + "].");

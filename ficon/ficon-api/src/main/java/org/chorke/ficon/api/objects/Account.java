@@ -3,6 +3,7 @@ package org.chorke.ficon.api.objects;
 
 import java.math.BigDecimal;
 import java.util.Collections;
+import java.util.Currency;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -11,7 +12,7 @@ import java.util.List;
  * 
  * @author Chorke
  */
-public class Account {
+public class Account implements Cloneable{
     /**
      * ID of this account.
      */
@@ -20,6 +21,10 @@ public class Account {
      * ID of user that this account belong to.
      */
     private final Long usersID;
+    /**
+     * Currency for this account.
+     */
+    private final Currency currency;
     /**
      * Name of this account.
      */
@@ -48,23 +53,37 @@ public class Account {
      * @param usersID user that this account belong to
      * @throws IllegalArgumentException if {@code usersID} is {@code null}
      */
-    public Account(Long usersID) {
+    public Account(Long usersID, Currency currency) {
         if(usersID == null){
             throw new IllegalArgumentException("User's ID cannot be null. "
                     + "Account has to be associated with some user.");
         }
+        if(currency == null){
+            throw new IllegalArgumentException("Currency cannot be null. "
+                    + "Account has to have some curency.");
+        }
         this.usersID = usersID;
+        this.currency = currency;
         transactions = new LinkedList<>();
         transactionsIDs = new LinkedList<>();
     }
 
     /**
-     * Returns ID of user that this transaction belong to.
+     * Returns ID of user that this account belong to.
      * 
      * @return user's ID
      */
     public Long getUsersID() {
         return usersID;
+    }
+    
+    /**
+     * Return account's currency.
+     * 
+     * @return account's currency
+     */
+    public Currency getCurrency() {
+        return currency;
     }
 
     /**
@@ -97,6 +116,8 @@ public class Account {
     public String getName() {
         return name;
     }
+
+   
 
     /**
      * Sets name for this account.
@@ -218,8 +239,24 @@ public class Account {
     public boolean equals(Object obj) {
         if(obj instanceof Account){
             Long objId = ((Account)obj).getId();
-            return id == null ? objId == null : id.equals(objId);
+            return id == null ? false : id.equals(objId);
         }
         return false;
+    }
+
+    @Override
+    public Account clone() {
+        try{
+            Account ac = (Account)super.clone();
+            ac.transactions = new LinkedList<>();
+            ac.transactionsIDs = new LinkedList<>();
+            for(TransactionRecord tr : transactions){
+                ac.addTransaction(tr.clone());
+            }
+            return ac;
+        } catch (CloneNotSupportedException ex){
+            //should not happend
+            throw new InternalError(ex.toString());
+        }
     }
 }

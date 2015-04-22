@@ -9,6 +9,7 @@ import org.chorke.ficon.api.objects.Account;
 import org.chorke.ficon.api.objects.TransactionRecord;
 import org.chorke.ficon.api.services.AccountService;
 import org.chorke.ficon.api.test.services.AccountServiceAbstractTest;
+import org.chorke.ficon.api.utils.ExchangeRateTable;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
@@ -90,13 +91,14 @@ public class AccountServiceTest extends AccountServiceAbstractTest{
     }
 
     @Override
-    protected void beforeTransferMoney(Account fromAccount, Account toAccount, TransactionRecord template) {
+    protected void beforeTransferMoney(Account fromAccount, Account toAccount,
+        TransactionRecord template, ExchangeRateTable table) {
         //nothing yet
     }
 
     @Override
     protected void afterTransferMoney(Exception thrown, Account fromAccount,
-            Account toAccount, TransactionRecord template) {
+            Account toAccount, TransactionRecord template, ExchangeRateTable table) {
         //nothing yet
     }
 
